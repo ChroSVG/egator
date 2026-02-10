@@ -27,3 +27,4 @@ dist-ssr
 .eclintcache
 server/.env
 client/.env
+**/.vscode
