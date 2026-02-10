@@ -1,16 +1,25 @@
 import React, { useState } from 'react'
 import {IoMdClose} from 'react-icons/io'
+import { useDispatch } from 'react-redux'
+import { UiActions } from '../store/ui-slice'
+
 const AddCandidateModal = () => {
     const [fullName, setFullName] = useState("")
     const [motto, setMotto] = useState("")
     const [image, setImage] = useState("")
+
+    const dispatch = useDispatch()
+    const closeAddCandidateModal = () => {
+        dispatch(UiActions.closeAddCandidateModal())
+    }
+
 
   return (
     <section className="modal">
         <div className="modal__content">
             <header className="modal__header">
                 <h4>Add Candidate</h4>
-                <button className="modal__close"><IoMdClose /></button>
+                <button className="modal__close" onClick={closeAddCandidateModal}><IoMdClose /></button>
             </header>
             <form>
                 <div>
@@ -36,3 +45,5 @@ const AddCandidateModal = () => {
 )
 
 }
+
+export default AddCandidateModal

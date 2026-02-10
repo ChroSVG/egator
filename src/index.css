@@ -632,7 +632,7 @@ nav {
     margin: 1.2rem 0 0.8rem;
 }
 
-.electionDetails__candidate {
+.electionDetails__candidates {
     margin-top: 2.5rem;
     padding-top: 2.5rem;
     display: grid;
@@ -695,7 +695,7 @@ nav {
 }
 
 .voters {
-    margin: 6rem;
+    margin: 6rem 0 3rem;
 }
 
 .voters h2 {
@@ -712,6 +712,9 @@ nav {
     padding: 0.7rem 1.5rem;
 }
 
+.voters__table tbody td {
+    padding: 0.7rem 1.5rem;
+}
 .voters__table tbody tr:nth-child(odd) {
     background: var(--color-gray-0);
 }

@@ -1,13 +1,16 @@
-import React,{useSelector} from 'react'
+import React from 'react'
 import {elections, candidates, voters} from '../data'
 import { useParams } from 'react-router-dom'
 import ElectionCandidate from '../components/ElectionCandidate'
 import {IoAddOutline} from 'react-icons/io5'
 import { useDispatch } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
-
+import { useSelector } from 'react-redux';
+import AddCandidateModal from '../components/AddCandidateModal'
 
 const ElectionDetails = () => {
+
+  
   const {id} = useParams()
   const dispatch = useDispatch()
   const currentElection = elections.find(election => election.id == id)
