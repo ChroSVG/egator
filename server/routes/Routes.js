@@ -8,7 +8,7 @@ const {addElection, getElections, getSingleElection, getCandidatesOfElection, ge
 
 router.post('/voters/register', registerVoter);
 router.post('/voters/login', loginVoter);
-router.post('/voters/:id', getVoter);
+router.get('/voters/:id', getVoter);
 
 
 router.post('/elections/', addElection);

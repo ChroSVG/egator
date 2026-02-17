@@ -19,7 +19,7 @@ app.use(errorHandler);
 
 app.listen(process.env.PORT || 5000, async () => {
     try {
-        await connect(process.env.MONGO_URL, {useNewUrlParser: true, useUnifiedTopology: true});
+        await connect(process.env.MONGO_URL);
         console.log('Connected to MongoDB');
     } catch (error) {
         console.log(error);
