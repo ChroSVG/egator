@@ -1,4 +1,4 @@
-const {Shcema, model, Types} = require('mongoose');
+const { Schema , model, Types} = require("mongoose");
 
 
 const candidateSchema = new Schema({

@@ -140,8 +140,21 @@ const loginVoter = async (req, res, next) => {
 // post : /api/voters/:id
 // protected
 const getVoter = async (req, res, next) => {
-    res.json({message: 'Voter details retrieved successfully!'});}
 
+    
+    try {
+        const {id} = req.params;
+        
+        const voter = await VoterModel.findById(id).select('-password');
+        if(!voter) {
+            return next(new HttpError("Voter not found", 404));
+        }
+
+        res.json({voter});
+    } catch (error) {
+        return next(new HttpError("Failed to get voter details", 422));
+    }
+}
 
 
 
