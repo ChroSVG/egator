@@ -95,24 +95,30 @@ const addCandidate = async (req, res, next) => {
 // Protected
 const getCandidates = async (req, res, next) => {
     try {
-        // Jika route-nya adalah /api/candidates/:electionId
-        const { electionId } = req.query;
+        const { election, search, sort } = req.query;
+        let query = {};
 
-        if (!electionId) {
-            return next(new HttpError("Election ID is required", 422));
-        }
+        // Filter berdasarkan Election ID
+        if (election) query.election = election;
 
-        // Gunakan .find() karena kita mencari SEMUA kandidat yang punya electionId tersebut
-        const candidates = await CandidateModel.find({ election: electionId }).sort({ createdAt: -1 });
+        // Cari berdasarkan nama (Case-insensitive)
+        if (search) query.fullName = { $regex: search, $options: 'i' };
+
+        // Sorting: default terbaru, atau bisa berdasarkan vote terbanyak
+        let sortBy = { createdAt: -1 };
+        if (sort === 'votes') sortBy = { voteCount: -1 };
+
+        const candidates = await CandidateModel.find(query)
+            .populate('election', 'title') // Ambil info judul pemilihan saja
+            .sort(sortBy);
 
         res.status(200).json({
-            message: 'Candidates retrieved successfully!',
             status: 200,
             count: candidates.length,
             data: candidates
         });
     } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(new HttpError(error.message, 500));
     }
 }
 // Get Single Candidate
@@ -149,16 +155,97 @@ const getSingleCandidate = async (req, res, next) => {
 // Vote for Candidate
 // PATCH : /api/candidates/:id/vote
 // Protected 
-const voteForCandidate = (req, res, next) => {
-    res.json({message: 'Voted for candidate successfully!'});
+const voteForCandidate = async (req, res, next) => {
+    let session;
+    try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+
+        const { id } = req.params; 
+        const userId = req.user.id; 
+
+        // 1. Dapatkan info kandidat dulu (hanya untuk tahu ID Election-nya)
+        const candidateInfo = await CandidateModel.findById(id).session(session);
+        if (!candidateInfo) throw new Error("Candidate not found");
+
+        // 2. ATOMIC CHECK & UPDATE (Kuncinya di sini!)
+        // Kita hanya mengupdate user JIKA electionId TIDAK ADA di array votedElections
+        const userUpdate = await UserModel.updateOne(
+            { 
+                _id: userId, 
+                votedElections: { $ne: candidateInfo.election } // Syarat: Belum memilih
+            },
+            { 
+                $push: { votedElections: candidateInfo.election } 
+            },
+            { session }
+        );
+
+        // 3. GUNAKAN MODIFIEDCOUNT (rowCount versi MongoDB)
+        if (userUpdate.modifiedCount === 0) {
+            // Jika 0, berarti syarat $ne (not equal) gagal, alias user sudah memilih
+            throw new Error("You have already voted in this election");
+        }
+
+        // 4. ATOMIC INCREMENT
+        // Gunakan operator $inc agar kalkulasi dilakukan oleh Database Engine
+        await CandidateModel.updateOne(
+            { _id: id },
+            { $inc: { voteCount: 1 } },
+            { session }
+        );
+
+        await session.commitTransaction();
+        res.json({ message: 'Vote registered successfully!' });
+
+    } catch (error) {
+        if (session) await session.abortTransaction();
+        // Pastikan error ditangani dengan benar
+        next(new HttpError(error.message, error.message.includes("already") ? 422 : 500));
+    } finally {
+        if (session) session.endSession();
+    }
 }
 
 
 // Delete Candidate
 // DELETE : /api/candidates/:id
 // Protected (only admin can delete candidate)
-const deleteCandidate = (req, res, next) => {
-    res.json({message: 'Candidate deleted successfully!'});
+const deleteCandidate = async (req, res, next) => {
+    let session;
+    try {
+        if (!req.user.isAdmin) return next(new HttpError("Unauthorized", 403));
+
+        const { id } = req.params;
+        const candidate = await CandidateModel.findById(id).populate('election');
+        if (!candidate) return next(new HttpError("Candidate not found", 404));
+
+        // Hapus di Cloudinary (opsional tapi disarankan)
+        const publicId = candidate.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`candidates/${publicId}`);
+
+        session = await mongoose.startSession();
+        session.startTransaction();
+
+        await CandidateModel.findByIdAndDelete(id, { session });
+
+        // Update Election agar ID kandidat ini hilang dari list
+        await ElectionModel.findByIdAndUpdate(
+            candidate.election, 
+            { $pull: { candidates: id } }, 
+            { session }
+        );
+
+        await session.commitTransaction();
+        res.status(200).json({
+            message: 'Candidate deleted successfully!',
+            status: 200,
+            data: candidate
+        });
+    } catch (error) {
+        if (session) await session.abortTransaction();
+        next(new HttpError(error.message, 500));
+    }
 }
 
 module.exports = {addCandidate, getCandidates, getSingleCandidate, voteForCandidate, deleteCandidate};
