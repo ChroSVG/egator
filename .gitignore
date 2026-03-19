@@ -28,3 +28,4 @@ dist-ssr
 server/.env
 client/.env
 **/.vscode
+**/uploads/*
