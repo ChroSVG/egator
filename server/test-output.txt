@@ -1,0 +1,6 @@
+{
+  "validateEmail": "array",
+  "validatePassword": "array",
+  "validateCreateElection": "array",
+  "validateVote": "array"
+}

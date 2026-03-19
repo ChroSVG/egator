@@ -29,12 +29,19 @@ class CacheService {
      */
     async initialize() {
         try {
+            // Only try to connect if Redis URL is provided
+            if (!process.env.REDIS_URL) {
+                console.log('ℹ️  Redis not configured, using in-memory cache');
+                this.useRedis = false;
+                return;
+            }
+            
             // Try to connect to Redis if available
             const Redis = require('ioredis');
-            this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+            this.redis = new Redis(process.env.REDIS_URL);
             
             this.redis.on('error', (err) => {
-                console.log('⚠️  Redis error, falling back to memory cache:', err.message);
+                // Silently fall back to memory cache
                 this.useRedis = false;
             });
 
@@ -46,7 +53,6 @@ class CacheService {
             await this.redis.ping();
             this.useRedis = true;
         } catch (error) {
-            console.log('⚠️  Redis not available, using in-memory cache');
             this.useRedis = false;
         }
     }

@@ -37,6 +37,6 @@ voterSchema.index({ _id: 1, votedElections: 1 });
 voterSchema.index({ isAdmin: 1 });
 
 // Index for email lookups (case-insensitive)
-voterSchema.index({ email: 1 });
+// voterSchema.index({ email: 1 });
 
 module.exports = model('Voter', voterSchema);

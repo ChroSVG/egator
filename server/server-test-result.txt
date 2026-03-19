@@ -1,0 +1,5 @@
+{
+  "status": "success",
+  "message": "Server module loaded successfully",
+  "routes": "No routes"
+}

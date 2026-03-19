@@ -21,7 +21,7 @@ const {
     deleteCandidate
 } = require('../controllers/candidateController');
 
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');
 const { loginLimiter, registerLimiter, voteLimiter, adminLimiter, generalLimiter } = require('../middleware/rateLimitMiddleware');
 const { validateEmail, validatePassword, validatePasswordConfirmation, validateCreateElection, validateCreateCandidate, validateVote } = require('../middleware/validationMiddleware');
 const idempotencyGuard = require('../middleware/idempotencyMiddleware');

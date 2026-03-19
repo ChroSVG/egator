@@ -1,4 +1,4 @@
-const eventEmitter = require('./eventEmitter');
+const eventEmitter = require('../utils/eventEmitter');
 
 /**
  * Event Subscribers - Logging

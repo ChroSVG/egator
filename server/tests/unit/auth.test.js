@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../index');
-const Voter = require('../models/voterModel');
+const app = require('../../index');
+const Voter = require('../../models/voterModel');
 const bcrypt = require('bcryptjs');
 
 describe('Authentication Tests', () => {
