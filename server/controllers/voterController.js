@@ -5,50 +5,43 @@ const jwt = require('jsonwebtoken');
 const VoterModel = require('../models/voterModel');
 const HttpError = require('../models/errorModel');
 
-
-
-
-
 // Register a new voter
 // post : /api/voters/register
 // unprotected
 const registerVoter = async (req, res, next) => {
+    let session;
     try {
-
         // Validate input
         const {fullName, email, password, password2} = req.body;
         if(!fullName || !email || !password || !password2) {
-            return next(new HttpError("Please provide all required fields", 422));
+            return next(new HttpError("Please provide all required fields", 400));
         }
-        
+
         // make all emails lowercase
         const newEmail = email.toLowerCase();
         // Check if voter already exists
         const existingVoter = await VoterModel.findOne({email: newEmail});
         if(existingVoter) {
-            return next(new HttpError("Voter with this email already exists", 422));
+            return next(new HttpError("Voter with this email already exists", 409));
         }
 
-        // make sure password is at least 6 characters long
-        if((password.trim().length) < 6) {
-            return next(new HttpError("Password must be at least 6 characters long", 422));
+        // make sure password is at least 8 characters long
+        if((password.trim().length) < 8) {
+            return next(new HttpError("Password must be at least 8 characters long", 400));
         }
-
 
         // Check if passwords match
         if(password !== password2) {
-            return next(new HttpError("Passwords do not match", 422));
+            return next(new HttpError("Passwords do not match", 400));
         }
 
         // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // No user/voter should be admin except for one with a specific email (for testing purposes)
-        let isAdmin = false;
-        if(newEmail === 'achiever@gmail.com') {
-            isAdmin = true;
-        }
+        // No user/voter should be admin by default
+        // Admin users must be created via seed script
+        const isAdmin = false;
 
         // Create new voter
         const newVoter = new VoterModel({
@@ -61,13 +54,14 @@ const registerVoter = async (req, res, next) => {
         // Save new voter
         await newVoter.save();
 
-        res.status(201).json({message: `Voter ${newVoter.fullName} registered successfully!`, token: generateToken({user: {id: newVoter._id, isAdmin: newVoter.isAdmin}})
-    });
+        res.status(201).json({
+            message: `Voter ${newVoter.fullName} registered successfully!`, 
+            token: generateToken({user: {id: newVoter._id, isAdmin: newVoter.isAdmin}})
+        });
 
     } catch (error) {
-        return next(new HttpError("Voter registration failed", 422));
+        return next(new HttpError(error.message || "Voter registration failed", 500));
     }
-
 }
 
 
@@ -87,12 +81,11 @@ const generateToken = (payload) => {
 // unprotected
 const loginVoter = async (req, res, next) => {
     try {
-
         // Validate input
         const {email, password} = req.body;
 
         if(!email || !password) {
-            return next(new HttpError("Please provide all required fields", 422));
+            return next(new HttpError("Please provide all required fields", 400));
         }
 
         // make all emails lowercase
@@ -112,9 +105,8 @@ const loginVoter = async (req, res, next) => {
             return next(new HttpError("Invalid credentials", 401));
         }
 
-
         const {_id: id , isAdmin, votedElections} = existingVoter;
-        
+
         // Generate token
         const token = generateToken({user: {id, isAdmin}});
 
@@ -131,8 +123,8 @@ const loginVoter = async (req, res, next) => {
         });
 
     } catch (error) {
-    return next(new HttpError("Voter login failed", 422));
-}
+        return next(new HttpError(error.message || "Voter login failed", 500));
+    }
 }
 
 
@@ -140,11 +132,9 @@ const loginVoter = async (req, res, next) => {
 // post : /api/voters/:id
 // protected
 const getVoter = async (req, res, next) => {
-
-    
     try {
         const {id} = req.params;
-        
+
         const voter = await VoterModel.findById(id).select('-password');
         if(!voter) {
             return next(new HttpError("Voter not found", 404));
@@ -152,7 +142,7 @@ const getVoter = async (req, res, next) => {
 
         res.json({voter});
     } catch (error) {
-        return next(new HttpError("Failed to get voter details", 422));
+        return next(new HttpError(error.message || "Failed to get voter details", 500));
     }
 }
 

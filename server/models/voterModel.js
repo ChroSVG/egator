@@ -4,24 +4,25 @@ const voterSchema = new Schema({
     fullName: {
         type: String,
         required: [true, "Nama lengkap wajib diisi"],
-        trim: true // Menghapus spasi di awal/akhir secara otomatis
+        trim: true
     },
     email: {
         type: String,
         required: [true, "Email wajib diisi"],
         unique: true,
-        lowercase: true, // Memastikan 'User@Mail.com' jadi 'user@mail.com'
-        trim: true
+        lowercase: true,
+        trim: true,
+        maxlength: [255, "Email must be less than 255 characters"]
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        minlength: [8, "Password must be at least 8 characters"]
     },
-    // Menggunakan ref ke Election untuk integritas relasi
     votedElections: [{
         type: Types.ObjectId,
         ref: 'Election',
-        default: [] // Memberikan default array kosong agar tidak undefined
+        default: []
     }],
     isAdmin: {
         type: Boolean,
@@ -29,7 +30,13 @@ const voterSchema = new Schema({
     }
 }, { timestamps: true });
 
-// Optional: Tambahkan index untuk mempercepat pencarian jika user sudah vote
+// Index for faster lookups when checking if user has voted
 voterSchema.index({ _id: 1, votedElections: 1 });
+
+// Index for admin lookups
+voterSchema.index({ isAdmin: 1 });
+
+// Index for email lookups (case-insensitive)
+voterSchema.index({ email: 1 });
 
 module.exports = model('Voter', voterSchema);
