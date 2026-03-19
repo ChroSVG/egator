@@ -1,8 +1,10 @@
 const path = require('path');
+const fs = require('fs').promises;
 const { v4: uuid } = require('uuid');
 const ElectionRepository = require('../repositories/electionRepository');
 const CandidateRepository = require('../repositories/candidateRepository');
-const cloudinary = require('../utils/cloudinary');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
+const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const { withTransaction } = require('../utils/transactionHelper');
@@ -26,25 +28,42 @@ class ElectionService {
      */
     async createElection(data, file) {
         const { title, description } = data;
+        let uploadedImageUrl = null;
 
-        // Upload image to Cloudinary
-        const thumbnailUrl = await this.uploadImage(file, 'elections');
+        try {
+            // Upload image to Cloudinary (with circuit breaker)
+            uploadedImageUrl = await cloudinaryBreaker.execute(
+                async () => await this.uploadImage(file, 'elections'),
+                { fallback: null }
+            );
 
-        // Create election
-        const election = await this.electionRepository.create({
-            title,
-            description,
-            thumbnail: thumbnailUrl
-        });
+            if (!uploadedImageUrl) {
+                throw new HttpError('Failed to upload election thumbnail', 500);
+            }
 
-        // Emit event
-        eventEmitter.emitElectionCreated({
-            electionId: election._id,
-            title: election.title,
-            adminId: null // Would be passed from authenticated user
-        });
+            // Create election
+            const election = await this.electionRepository.create({
+                title,
+                description,
+                thumbnail: uploadedImageUrl
+            });
 
-        return election;
+            // Emit event
+            eventEmitter.emitElectionCreated({
+                electionId: election._id,
+                title: election.title,
+                adminId: null
+            });
+
+            return election;
+
+        } catch (error) {
+            // Clean up Cloudinary image if creation fails
+            if (uploadedImageUrl) {
+                await deleteFromCloudinary(uploadedImageUrl);
+            }
+            throw error;
+        }
     }
 
     /**
@@ -100,7 +119,7 @@ class ElectionService {
         const { title, description } = data;
 
         const election = await this.electionRepository.findById(id);
-        
+
         if (!election) {
             throw new HttpError('Election not found', 404);
         }
@@ -109,11 +128,16 @@ class ElectionService {
 
         // Handle new thumbnail
         if (file) {
-            // Delete old image from Cloudinary
-            await this.deleteImage(election.thumbnail);
-            
+            // Delete old image from Cloudinary (with circuit breaker)
+            await cloudinaryBreaker.execute(
+                async () => await deleteFromCloudinary(election.thumbnail)
+            );
+
             // Upload new image
-            updateData.thumbnail = await this.uploadImage(file, 'elections');
+            updateData.thumbnail = await cloudinaryBreaker.execute(
+                async () => await this.uploadImage(file, 'elections'),
+                { fallback: election.thumbnail } // Keep old image if upload fails
+            );
         }
 
         const updatedElection = await this.electionRepository.updateById(id, updateData);
@@ -135,13 +159,15 @@ class ElectionService {
     async deleteElection(id) {
         return await withTransaction(async (session) => {
             const election = await this.electionRepository.findById(id, { session });
-            
+
             if (!election) {
                 throw new HttpError('Election not found', 404);
             }
 
-            // Delete thumbnail from Cloudinary
-            await this.deleteImage(election.thumbnail);
+            // Delete thumbnail from Cloudinary (with circuit breaker)
+            await cloudinaryBreaker.execute(
+                async () => await deleteFromCloudinary(election.thumbnail)
+            );
 
             // Delete all candidates
             await this.candidateRepository.deleteByElection(id, { session });
@@ -209,29 +235,29 @@ class ElectionService {
         const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
         const filePath = path.join(__dirname, '..', 'uploads', fileName);
 
-        await file.mv(filePath);
+        try {
+            // Save file locally first
+            await file.mv(filePath);
 
-        const result = await cloudinary.uploader.upload(filePath, {
-            folder,
-            public_id: fileName.split('.')[0],
-            resource_type: 'image'
-        });
+            // Upload to Cloudinary
+            const imageUrl = await uploadToCloudinary(filePath, folder);
 
-        if (!result.secure_url) {
-            throw new HttpError('Failed to upload image', 500);
+            // Clean up local file
+            await fs.unlink(filePath).catch(err => {
+                console.warn('⚠️  Failed to delete temporary file:', err.message);
+            });
+
+            return imageUrl;
+
+        } catch (error) {
+            // Clean up local file if upload fails
+            try {
+                await fs.unlink(filePath);
+            } catch (cleanupError) {
+                console.warn('⚠️  Failed to cleanup file after error:', cleanupError.message);
+            }
+            throw error;
         }
-
-        return result.secure_url;
-    }
-
-    /**
-     * Delete image from Cloudinary
-     * @param {string} imageUrl - Image URL
-     * @returns {Promise<void>}
-     */
-    async deleteImage(imageUrl) {
-        const publicId = imageUrl.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(`${publicId.split('_')[0]}/${publicId}`);
     }
 
     /**
