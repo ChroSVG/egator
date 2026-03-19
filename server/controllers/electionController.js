@@ -54,7 +54,7 @@ const addElection = async (req, res, next) => {
         // Upload to Cloudinary
         const result = await cloudinary.uploader.upload(path.join(__dirname, '..', 'uploads', fileName), {
             folder: 'elections',
-            public_id: fileName,
+            public_id: fileName.split('.')[0],
             resource_type: 'image'
         });
 
@@ -209,7 +209,7 @@ const updateElection = async (req, res, next) => {
                 // Upload to Cloudinary
                 const result = await cloudinary.uploader.upload(path.join(__dirname, '..', 'uploads', fileName), {
                     folder: 'elections',
-                    public_id: fileName,
+                    public_id: fileName.split('.')[0],
                     resource_type: 'image'
                 });
 
