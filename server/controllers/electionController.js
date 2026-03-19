@@ -1,319 +1,241 @@
+const ElectionService = require('../services/electionService');
+const cacheService = require('../utils/cacheService');
+const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const HttpError = require('../models/errorModel');
-const cloudinary = require('../utils/cloudinary');
-const CandidateModel = require('../models/candidateModel');
-const ElectionModel = require('../models/electionModel');
-const VoterModel = require('../models/voterModel');
 
-const { v4: uuid } = require('uuid');
-const path = require('path');
+const electionService = new ElectionService();
 
 /**
  * Add New Election
- * POST : /api/elections
- * Protected (only admin can add election)
+ * POST /api/elections
  */
 const addElection = async (req, res, next) => {
     try {
         if (!req.user.isAdmin) {
-            return next(new HttpError("You are not authorized to add an election", 403));
+            throw new HttpError('You are not authorized to add an election', 403);
         }
 
         const { title, description } = req.body;
 
-        if (!title || !description) {
-            return next(new HttpError("Please provide title and description", 400));
-        }
-
         if (!req.files || !req.files.thumbnail) {
-            return next(new HttpError("Please provide a thumbnail image", 400));
+            throw new HttpError('Please provide a thumbnail image', 400);
         }
 
-        const { thumbnail } = req.files;
+        const election = await electionService.createElection(
+            { title, description },
+            req.files.thumbnail
+        );
 
-        if (!thumbnail.mimetype.startsWith('image/')) {
-            return next(new HttpError("Thumbnail must be an image file", 400));
-        }
-
-        if (thumbnail.size > 1 * 1024 * 1024) {
-            return next(new HttpError("Thumbnail image size exceeds 1MB limit", 400));
-        }
-
-        const fileExtension = thumbnail.name.split('.').pop();
-        const fileName = `${thumbnail.name.split('.')[0]}-${uuid()}.${fileExtension}`;
-        const filePath = path.join(__dirname, '..', 'uploads', fileName);
-
-        await thumbnail.mv(filePath);
-
-        const result = await cloudinary.uploader.upload(filePath, {
-            folder: 'elections',
-            public_id: fileName.split('.')[0],
-            resource_type: 'image'
-        });
-
-        if (!result.secure_url) {
-            return next(new HttpError("Failed to upload thumbnail image to Cloudinary", 500));
-        }
-
-        const newElection = new ElectionModel({
-            title,
-            description,
-            thumbnail: result.secure_url
-        });
-
-        await newElection.save();
+        // Invalidate elections cache
+        await cacheService.invalidateElection();
 
         res.status(201).json({
             message: 'Election added successfully!',
-            data: newElection
+            data: election
         });
-
     } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(error);
     }
 };
 
 /**
  * Get All Elections
- * GET : /api/elections
- * Protected
+ * GET /api/elections
  */
 const getElections = async (req, res, next) => {
     try {
-        const elections = await ElectionModel.find().sort({ createdAt: -1 });
-        res.status(200).json({
+        const { isActive, page = 1, limit = 10 } = req.query;
+
+        // Try cache first
+        const cacheKey = `elections:${isActive}:${page}:${limit}`;
+        
+        const result = await cacheService.getOrSet(
+            cacheKey,
+            async () => {
+                return await electionService.getElections({ isActive, page, limit });
+            },
+            300 // 5 minutes TTL
+        );
+
+        res.json({
             message: 'Elections retrieved successfully!',
-            count: elections.length,
-            data: elections
+            ...result
         });
     } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(error);
     }
 };
 
 /**
  * Get Single Election
- * GET : /api/elections/:id
- * Protected
+ * GET /api/elections/:id
  */
 const getSingleElection = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const election = await ElectionModel.findById(id);
-        
-        if (!election) {
-            return next(new HttpError("Election not found", 404));
-        }
-        
-        res.status(200).json({
+        const { includeCandidates } = req.query;
+
+        // Try cache first
+        const cacheKey = `election:${id}:${includeCandidates}`;
+
+        const election = await cacheService.getOrSet(
+            cacheKey,
+            async () => {
+                return await electionService.getElectionById(id, includeCandidates === 'true');
+            },
+            600 // 10 minutes TTL
+        );
+
+        res.json({
             message: 'Election retrieved successfully!',
             data: election
         });
     } catch (error) {
-        return next(new HttpError(error.message, 500));
-    }
-};
-
-/**
- * Get Election Candidates
- * GET : /api/elections/:id/candidates
- * Protected
- */
-const getCandidatesOfElection = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const election = await ElectionModel.findById(id).populate('candidates');
-        
-        if (!election) {
-            return next(new HttpError("Election not found", 404));
-        }
-        
-        res.status(200).json({
-            message: 'Election candidates retrieved successfully!',
-            count: election.candidates.length,
-            data: election.candidates
-        });
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
-    }
-};
-
-/**
- * Get Election Voters
- * GET : /api/elections/:id/voters
- * Protected
- */
-const getVotersOfElection = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const election = await ElectionModel.findById(id);
-        
-        if (!election) {
-            return next(new HttpError("Election not found", 404));
-        }
-
-        const voters = await VoterModel.find({ votedElections: id })
-            .select('fullName email createdAt');
-        
-        res.status(200).json({
-            message: 'Election voters retrieved successfully!',
-            count: voters.length,
-            data: voters
-        });
-    } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(error);
     }
 };
 
 /**
  * Update Election
- * PATCH : /api/elections/:id
- * Protected (only admin)
+ * PATCH /api/elections/:id
  */
 const updateElection = async (req, res, next) => {
     try {
         if (!req.user.isAdmin) {
-            return next(new HttpError("You are not authorized to update an election", 403));
+            throw new HttpError('You are not authorized to update an election', 403);
         }
 
         const { id } = req.params;
         const { title, description } = req.body;
 
-        if (!title || !description) {
-            return next(new HttpError("Please provide title and description", 400));
-        }
-
-        const existingElection = await ElectionModel.findById(id);
-        if (!existingElection) {
-            return next(new HttpError("Election not found", 404));
-        }
-
-        const updateData = { title, description };
-
-        if (req.files && req.files.thumbnail) {
-            const { thumbnail } = req.files;
-
-            if (!thumbnail.mimetype.startsWith('image/')) {
-                return next(new HttpError("Thumbnail must be an image file", 400));
-            }
-
-            if (thumbnail.size > 1 * 1024 * 1024) {
-                return next(new HttpError("Thumbnail must be less than 1MB", 400));
-            }
-
-            const fileExtension = thumbnail.name.split('.').pop();
-            const fileName = `${thumbnail.name.split('.')[0]}-${uuid()}.${fileExtension}`;
-            const filePath = path.join(__dirname, '..', 'uploads', fileName);
-
-            await thumbnail.mv(filePath);
-
-            const result = await cloudinary.uploader.upload(filePath, {
-                folder: 'elections',
-                public_id: fileName.split('.')[0],
-                resource_type: 'image'
-            });
-
-            if (!result.secure_url) {
-                return next(new HttpError("Failed to upload thumbnail image to Cloudinary", 500));
-            }
-
-            updateData.thumbnail = result.secure_url;
-        }
-
-        const updatedElection = await ElectionModel.findByIdAndUpdate(
+        const election = await electionService.updateElection(
             id,
-            updateData,
-            { new: true, runValidators: true }
+            { title, description },
+            req.files?.thumbnail || null
         );
 
-        res.status(200).json({
-            message: 'Election updated successfully!',
-            data: updatedElection
-        });
+        // Invalidate cache
+        await cacheService.invalidateElection(id);
 
+        res.json({
+            message: 'Election updated successfully!',
+            data: election
+        });
     } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(error);
     }
 };
 
 /**
  * Delete Election
- * DELETE : /api/elections/:id
- * Protected (only admin)
+ * DELETE /api/elections/:id
  */
 const deleteElection = async (req, res, next) => {
     try {
         if (!req.user.isAdmin) {
-            return next(new HttpError("You are not authorized to delete an election", 403));
+            throw new HttpError('You are not authorized to delete an election', 403);
         }
 
         const { id } = req.params;
-        const election = await ElectionModel.findByIdAndDelete(id);
-        
-        if (!election) {
-            return next(new HttpError("Election not found", 404));
-        }
 
-        await CandidateModel.deleteMany({ election: id });
+        const election = await electionService.deleteElection(id);
 
-        res.status(200).json({
+        // Invalidate cache
+        await cacheService.invalidateElection(id);
+
+        res.json({
             message: 'Election deleted successfully!',
             data: election
         });
     } catch (error) {
-        return next(new HttpError(error.message, 500));
+        next(error);
     }
 };
 
 /**
- * Get All Voters of an Election
- * GET : /api/elections/:electionId/voters
- * Protected
+ * Get Election Candidates
+ * GET /api/elections/:id/candidates
  */
-const getElectionVoters = async (req, res, next) => {
+const getCandidatesOfElection = async (req, res, next) => {
     try {
-        const { electionId } = req.params;
+        const { id } = req.params;
 
-        const participants = await VoterModel.find({
-            votedElections: electionId
-        })
-        .select('fullName email createdAt')
-        .lean();
+        const candidates = await electionService.getElectionCandidates(id);
 
-        res.status(200).json({
-            count: participants.length,
-            voters: participants
+        res.json({
+            message: 'Election candidates retrieved successfully!',
+            count: candidates.length,
+            data: candidates
         });
     } catch (error) {
-        next(new HttpError(error.message, 500));
+        next(error);
+    }
+};
+
+/**
+ * Get Election Voters
+ * GET /api/elections/:id/voters
+ */
+const getVotersOfElection = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const voters = await electionService.getElectionVoters(id);
+
+        res.json({
+            message: 'Election voters retrieved successfully!',
+            count: voters.length,
+            data: voters
+        });
+    } catch (error) {
+        next(error);
     }
 };
 
 /**
  * Get Election Results
- * GET : /api/elections/:electionId/results
- * Protected
+ * GET /api/elections/:electionId/results
  */
 const getElectionResults = async (req, res, next) => {
     try {
         const { electionId } = req.params;
 
-        const candidates = await CandidateModel.find({ election: electionId })
-            .sort({ voteCount: -1 });
+        // Try cache first
+        const cacheKey = `election:${electionId}:results`;
 
-        const totalVotes = candidates.reduce((sum, cand) => sum + cand.voteCount, 0);
+        const results = await cacheService.getOrSet(
+            cacheKey,
+            async () => {
+                return await electionService.getElectionResults(electionId);
+            },
+            60 // 1 minute TTL - results may change frequently
+        );
 
-        res.status(200).json({
-            electionId,
-            totalVotes,
-            results: candidates.map(c => ({
-                candidateId: c._id,
-                name: c.fullName,
-                votes: c.voteCount,
-                percentage: totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(2) + '%' : '0%'
-            }))
+        res.json({
+            message: 'Election results retrieved successfully!',
+            data: results
         });
     } catch (error) {
-        next(new HttpError(error.message, 500));
+        next(error);
+    }
+};
+
+/**
+ * Get All Voters of an Election
+ * GET /api/elections/:electionId/voters
+ */
+const getElectionVoters = async (req, res, next) => {
+    try {
+        const { electionId } = req.params;
+
+        const voters = await electionService.getElectionVoters(electionId);
+
+        res.json({
+            count: voters.length,
+            voters: voters
+        });
+    } catch (error) {
+        next(error);
     }
 };
 

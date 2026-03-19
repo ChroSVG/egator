@@ -2,12 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
 const { connect } = require('mongoose');
 require('dotenv').config();
 
 const upload = require('express-fileupload');
 const Routes = require('./routes/Routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const cacheService = require('./utils/cacheService');
+
+// Initialize event subscribers (Observer Pattern)
+require('./subscribers/loggingSubscriber');
 
 const app = express();
 
@@ -77,13 +82,34 @@ app.use(upload({
 app.use('/api', Routes);
 
 // ============ Health Check ============
-app.get('/api/health', (req, res) => {
-    res.status(200).json({
+app.get('/api/health', async (req, res) => {
+    const { registry } = require('./utils/circuitBreaker');
+    
+    const healthStatus = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development'
-    });
+        environment: process.env.NODE_ENV || 'development',
+        services: {
+            mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+            cache: cacheService.useRedis ? 'redis' : 'memory',
+            circuitBreakers: registry.getAllStatuses()
+        }
+    };
+    
+    res.status(200).json(healthStatus);
+});
+
+// ============ Circuit Breaker Status ============
+app.get('/api/admin/circuit-breakers', (req, res) => {
+    const { registry } = require('./utils/circuitBreaker');
+    res.json(registry.getAllStatuses());
+});
+
+// ============ Cache Stats ============
+app.get('/api/admin/cache-stats', async (req, res) => {
+    const stats = await cacheService.getStats();
+    res.json(stats);
 });
 
 // ============ API Versioning (Optional) ============
@@ -98,6 +124,9 @@ let server;
 
 const startServer = async () => {
     try {
+        // Initialize cache service
+        await cacheService.initialize();
+        
         await connect(process.env.MONGO_URL, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
@@ -131,9 +160,14 @@ const startServer = async () => {
                     try {
                         await connect.connection.close();
                         console.log('✅ MongoDB connection closed');
+                        
+                        // Close cache connection
+                        await cacheService.close();
+                        console.log('✅ Cache connection closed');
+                        
                         process.exit(0);
                     } catch (error) {
-                        console.error('❌ Error closing MongoDB connection:', error);
+                        console.error('❌ Error closing connections:', error);
                         process.exit(1);
                     }
                 });
