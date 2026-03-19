@@ -13,9 +13,9 @@ const electionModel = require('../models/electionModel');
 const addElection = async (req, res, next) => {
     try {
     // only admin can add election
-    // if(!req.user.isAdmin) {
-    //     return next(new HttpError("You are not authorized to add an election", 403));
-    // }
+    if(!req.user.isAdmin) {
+        return next(new HttpError("You are not authorized to add an election", 403));
+    }
 
     const {title, description} = req.body;
 
@@ -165,9 +165,9 @@ const getVotersOfElection = async (req, res, next) => {
 const updateElection = async (req, res, next) => {
     try {
         // only admin can add election
-        // if(!req.user.isAdmin) {
-        //     return next(new HttpError("You are not authorized to add an election", 403));
-        // }
+        if(!req.user.isAdmin) {
+            return next(new HttpError("You are not authorized to update an election", 403));
+        }
 
         const {id} = req.params;
         const {title, description} = req.body;
@@ -238,9 +238,9 @@ const updateElection = async (req, res, next) => {
 const deleteElection = async (req, res, next) => {
     try {
         // only admin can add election
-        // if(!req.user.isAdmin) {
-        //     return next(new HttpError("You are not authorized to add an election", 403));
-        // }
+        if(!req.user.isAdmin) {
+            return next(new HttpError("You are not authorized to delete an election", 403));
+        }
 
         const {id} = req.params;
         const election = await ElectionModel.findByIdAndDelete(id);

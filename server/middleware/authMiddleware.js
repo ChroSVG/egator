@@ -27,3 +27,5 @@ const authMiddleware = async (req, res, next) => {
         return next(new HttpError(error, 500));
     }
 };
+
+module.exports = authMiddleware;

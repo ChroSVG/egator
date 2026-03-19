@@ -61,7 +61,7 @@ const registerVoter = async (req, res, next) => {
         // Save new voter
         await newVoter.save();
 
-        res.status(201).json({message: `Voter ${newVoter.fullName} registered successfully!`, token: generateToken({id: newVoter._id})
+        res.status(201).json({message: `Voter ${newVoter.fullName} registered successfully!`, token: generateToken({user: {id: newVoter._id, isAdmin: newVoter.isAdmin}})
     });
 
     } catch (error) {
@@ -116,7 +116,7 @@ const loginVoter = async (req, res, next) => {
         const {_id: id , isAdmin, votedElections} = existingVoter;
         
         // Generate token
-        const token = generateToken({id, isAdmin});
+        const token = generateToken({user: {id, isAdmin}});
 
         res.json({
             message: 'Voter logged in successfully!',
