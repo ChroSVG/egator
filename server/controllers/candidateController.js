@@ -60,34 +60,32 @@ const addCandidate = async (req, res, next) => {
             return next(new HttpError("Failed to upload candidate image to Cloudinary", 500));
         }
 
-        let newCandidate = new CandidateModel({
-            fullName,
-            motto,
-            image: result.secure_url,
-            election
-        });
-
-        let electionExists = await ElectionModel.findById(election);
-
-        if(!electionExists) {
-            return next(new HttpError("Election not found", 404));
-        }
-
-        const session = await mongoose.startSession();
+        // 4. Database Transaction
+        session = await mongoose.startSession();
         session.startTransaction();
 
-        await newCandidate.save({session});
+        const newCandidate = new CandidateModel({
+            fullName, motto, image: result.secure_url, election
+        });
 
+        const electionExists = await ElectionModel.findById(election);
+        if (!electionExists) throw new Error("Election not found");
+
+        await newCandidate.save({ session });
         electionExists.candidates.push(newCandidate._id);
-        await electionExists.save({session});
+        await electionExists.save({ session });
 
         await session.commitTransaction();
-        await session.endSession();
+        session.endSession();
 
-        res.status(201).json({message: 'Candidate added successfully!', status: 201, data : newCandidate}); 
+        res.status(201).json({ message: 'Candidate added!', data: newCandidate });
 
     } catch (error) {
-    return next(new HttpError(error.message || "An unknown error occurred", 500));
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
+        return next(new HttpError(error.message, 500));
     }
 }
 
