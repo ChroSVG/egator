@@ -21,11 +21,11 @@ const electionSchema = new Schema({
         ref: 'Candidate',
         required: true
     }],
-    voters: [{
-        type: Types.ObjectId,
-        ref: 'Voter',
-        required: true
-    }],
+    // voters: [{
+    //     type: Types.ObjectId,
+    //     ref: 'Voter',
+    //     required: true
+    // }],
 });
 
 module.exports = model('Election', electionSchema);

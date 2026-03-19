@@ -258,5 +258,55 @@ const deleteElection = async (req, res, next) => {
 
 }
 
+// Get All Voters of an Election
+// GET : /api/elections/:id/voters
+// Protected
+const getElectionVoters = async (req, res, next) => {
+    try {
+        const { electionId } = req.params;
 
-module.exports = {addElection, getElections, getSingleElection, getCandidatesOfElection, getVotersOfElection, updateElection, deleteElection};
+        // Cari semua Voter yang memiliki electionId di dalam array votedElections-nya
+        const participants = await VoterModel.find({ 
+            votedElections: electionId 
+        })
+        .select('fullName email createdAt') // Ambil field yang perlu saja
+        .lean(); // Mengubah instance Mongoose jadi objek JS biasa (lebih cepat & hemat RAM)
+
+        res.status(200).json({
+            count: participants.length,
+            voters: participants
+        });
+    } catch (error) {
+        next(new HttpError(error.message, 500));
+    }
+}
+
+// Get Election Results
+// GET : /api/elections/:id/results
+// Protected
+const getElectionResults = async (req, res, next) => {
+    try {
+        const { electionId } = req.params;
+
+        // Ambil semua kandidat yang ikut election ini
+        const candidates = await CandidateModel.find({ election: electionId })
+            .sort({ voteCount: -1 }); // Urutkan dari suara terbanyak
+
+        // Hitung total suara masuk secara dinamis
+        const totalVotes = candidates.reduce((sum, cand) => sum + cand.voteCount, 0);
+
+        res.status(200).json({
+            electionId,
+            totalVotes,
+            results: candidates.map(c => ({
+                name: c.fullName,
+                votes: c.voteCount,
+                percentage: totalVotes > 0 ? ((c.voteCount / totalVotes) * 100).toFixed(2) + '%' : '0%'
+            }))
+        });
+    } catch (error) {
+        next(new HttpError(error.message, 500));
+    }
+}
+
+module.exports = {addElection, getElections, getSingleElection, getCandidatesOfElection, getElectionVoters, getElectionResults, updateElection, deleteElection};

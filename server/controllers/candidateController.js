@@ -2,7 +2,7 @@ const HttpError = require('../models/errorModel');
 const cloudinary = require('../utils/cloudinary');
 const CandidateModel = require('../models/candidateModel');
 const ElectionModel = require('../models/electionModel');
-
+const VoterModel = require('../models/voterModel');
 const mongoose = require('mongoose');
 
 const {v4 : uuid} = require('uuid');
@@ -161,52 +161,75 @@ const voteForCandidate = async (req, res, next) => {
         session = await mongoose.startSession();
         session.startTransaction();
 
-        const { id } = req.params; 
-        const userId = req.user.id; 
+        const { id: candidateId } = req.params; 
+        const { currentVoterId, selectedElectionId } = req.body;
 
-        // 1. Dapatkan info kandidat dulu (hanya untuk tahu ID Election-nya)
-        const candidateInfo = await CandidateModel.findById(id).session(session);
+        if (!currentVoterId || !selectedElectionId) {
+            throw new Error("Missing voter ID or election ID");
+        }
+
+        // 1. Ambil data kandidat (Opsional: hanya jika butuh verifikasi awal)
+        const candidateInfo = await CandidateModel.findById(candidateId).session(session);
         if (!candidateInfo) throw new Error("Candidate not found");
 
-        // 2. ATOMIC CHECK & UPDATE (Kuncinya di sini!)
-        // Kita hanya mengupdate user JIKA electionId TIDAK ADA di array votedElections
-        const userUpdate = await UserModel.updateOne(
+        // Ambil ID Election dari kandidat yang dipilih
+        const electionIdFromDb = candidateInfo.election; 
+
+        // 2. Update voter menggunakan ID Election yang valid dari DB
+        const voterUpdate = await VoterModel.updateOne(
             { 
-                _id: userId, 
-                votedElections: { $ne: candidateInfo.election } // Syarat: Belum memilih
+                _id: currentVoterId, 
+                votedElections: { $ne: electionIdFromDb } // Cek pakai ID asli dari DB
             },
             { 
-                $push: { votedElections: candidateInfo.election } 
+                $push: { votedElections: electionIdFromDb } 
             },
             { session }
         );
 
-        // 3. GUNAKAN MODIFIEDCOUNT (rowCount versi MongoDB)
-        if (userUpdate.modifiedCount === 0) {
-            // Jika 0, berarti syarat $ne (not equal) gagal, alias user sudah memilih
+        if (voterUpdate.matchedCount === 0) {
+            throw new Error("Voter not found during update");
+        }
+
+        // Jika modifiedCount 0, artinya syarat di atas tidak terpenuhi (User sudah pilih)
+        if (voterUpdate.modifiedCount === 0) {
             throw new Error("You have already voted in this election");
         }
 
-        // 4. ATOMIC INCREMENT
-        // Gunakan operator $inc agar kalkulasi dilakukan oleh Database Engine
-        await CandidateModel.updateOne(
-            { _id: id },
+        // 3. ATOMIC INCREMENT KANDIDAT
+        // Menggunakan $inc agar kalkulasi dilakukan di Database, bukan di RAM Node.js
+        const candidateUpdate = await CandidateModel.updateOne(
+            { _id: candidateId },
             { $inc: { voteCount: 1 } },
             { session }
         );
 
+        if (candidateUpdate.matchedCount === 0) {
+            throw new Error("Candidate not found during update");
+        }
+
+        // 4. COMMIT TRANSAKSI
         await session.commitTransaction();
-        res.json({ message: 'Vote registered successfully!' });
+        
+        res.status(200).json({ 
+            message: 'Vote registered successfully!',
+            candidate: candidateId
+        });
 
     } catch (error) {
+        // Jika ada error di tengah jalan, batalkan SEMUA perubahan
         if (session) await session.abortTransaction();
-        // Pastikan error ditangani dengan benar
-        next(new HttpError(error.message, error.message.includes("already") ? 422 : 500));
+        
+        // Pemetaan status code sederhana
+        const statusCode = error.message.includes("already") ? 422 : 
+                           error.message.includes("not found") ? 404 : 500;
+                           
+        next(new HttpError(error.message, statusCode));
     } finally {
+        // Selalu tutup session untuk menghindari Memory Leak / Connection Exhaustion
         if (session) session.endSession();
     }
 }
-
 
 // Delete Candidate
 // DELETE : /api/candidates/:id
