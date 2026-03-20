@@ -11,9 +11,9 @@ const electionService = new ElectionService();
  */
 const addElection = async (req, res, next) => {
     try {
-        if (!req.user.isAdmin) {
-            throw new HttpError('You are not authorized to add an election', 403);
-        }
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('You are not authorized to add an election', 403);
+        // }
 
         const { title, description } = req.body;
 
@@ -101,9 +101,9 @@ const getSingleElection = async (req, res, next) => {
  */
 const updateElection = async (req, res, next) => {
     try {
-        if (!req.user.isAdmin) {
-            throw new HttpError('You are not authorized to update an election', 403);
-        }
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('You are not authorized to update an election', 403);
+        // }
 
         const { id } = req.params;
         const { title, description } = req.body;
@@ -132,9 +132,9 @@ const updateElection = async (req, res, next) => {
  */
 const deleteElection = async (req, res, next) => {
     try {
-        if (!req.user.isAdmin) {
-            throw new HttpError('You are not authorized to delete an election', 403);
-        }
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('You are not authorized to delete an election', 403);
+        // }
 
         const { id } = req.params;
 

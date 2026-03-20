@@ -21,7 +21,7 @@ const {
     deleteCandidate
 } = require('../controllers/candidateController');
 
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { loginLimiter, registerLimiter, voteLimiter, adminLimiter, generalLimiter } = require('../middleware/rateLimitMiddleware');
 const { validateEmail, validatePassword, validatePasswordConfirmation, validateCreateElection, validateCreateCandidate, validateVote } = require('../middleware/validationMiddleware');
 const idempotencyGuard = require('../middleware/idempotencyMiddleware');
@@ -35,21 +35,21 @@ router.post('/voters/login', loginLimiter, validateEmail, validatePassword, logi
 router.get('/voters/:id', authMiddleware, getVoter);
 
 // ============ Election Routes ============
-router.post('/elections/', authMiddleware, adminLimiter, validateCreateElection, addElection);
+router.post('/elections/', authMiddleware, adminLimiter, validateCreateElection, adminOnly, addElection);
 router.get('/elections/', authMiddleware, getElections);
 router.get('/elections/:id', authMiddleware, getSingleElection);
-router.patch('/elections/:id', authMiddleware, adminLimiter, validateCreateElection, updateElection);
-router.delete('/elections/:id', authMiddleware, adminLimiter, deleteElection);
+router.patch('/elections/:id', authMiddleware, adminLimiter, validateCreateElection, adminOnly, updateElection);
+router.delete('/elections/:id', authMiddleware, adminLimiter, adminOnly, deleteElection);
 router.get('/elections/:id/candidates', authMiddleware, getCandidatesOfElection);
 router.get('/elections/:id/voters', authMiddleware, getVotersOfElection);
 router.get('/elections/:electionId/results', authMiddleware, getElectionResults);
 router.get('/elections/:electionId/voters', authMiddleware, getElectionVoters);
 
 // ============ Candidate Routes ============
-router.post('/candidates/', authMiddleware, adminLimiter, validateCreateCandidate, addCandidate);
+router.post('/candidates/', authMiddleware, adminLimiter, validateCreateCandidate, adminOnly, addCandidate);
 router.get('/candidates/', authMiddleware, getCandidates);
 router.get('/candidates/:id', authMiddleware, getSingleCandidate);
-router.delete('/candidates/:id', authMiddleware, adminLimiter, deleteCandidate);
+router.delete('/candidates/:id', authMiddleware, adminLimiter, adminOnly, deleteCandidate);
 router.patch('/candidates/:id/vote', authMiddleware, voteLimiter, idempotencyGuard, validateVote, voteForCandidate);
 
 module.exports = router;
