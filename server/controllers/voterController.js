@@ -19,7 +19,7 @@ const registerVoter = async (req, res, next) => {
             password2
         });
 
-        res.status(201).json(result);
+        return res.status(201).json(result);
     } catch (error) {
         next(error);
     }
@@ -35,7 +35,7 @@ const loginVoter = async (req, res, next) => {
 
         const result = await authService.login({ email, password });
 
-        res.json(result);
+        return res.json(result);
     } catch (error) {
         next(error);
     }
@@ -56,7 +56,7 @@ const getVoter = async (req, res, next) => {
 
         const voter = await authService.getVoterById(id);
 
-        res.json({ voter });
+        return res.json({ voter });
     } catch (error) {
         next(error);
     }

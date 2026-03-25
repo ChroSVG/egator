@@ -54,12 +54,20 @@ app.use((req, res, next) => {
     // Add request ID
     req.id = require('uuid').v4();
     res.set('X-Request-Id', req.id);
-    
+
     // Track response time
     const start = Date.now();
-    res.on('finish', () => {
+    
+    // Use on-headers to set timing header before headers are sent
+    res.on('header', () => {
         const duration = Date.now() - start;
         res.set('X-Response-Time', `${duration}ms`);
+    });
+    
+    // Log after response is finished
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[${req.id}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
     });
     
     next();
@@ -158,7 +166,7 @@ const startServer = async () => {
                     console.log('✅ HTTP server closed');
                     
                     try {
-                        await connect.connection.close();
+                        await mongoose.connection.close();
                         console.log('✅ MongoDB connection closed');
                         
                         // Close cache connection

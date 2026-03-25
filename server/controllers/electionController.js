@@ -29,7 +29,7 @@ const addElection = async (req, res, next) => {
         // Invalidate elections cache
         await cacheService.invalidateElection();
 
-        res.status(201).json({
+        return res.status(201).json({
             message: 'Election added successfully!',
             data: election
         });

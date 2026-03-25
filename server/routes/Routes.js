@@ -23,15 +23,30 @@ const {
 
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
 const { loginLimiter, registerLimiter, voteLimiter, adminLimiter, generalLimiter } = require('../middleware/rateLimitMiddleware');
-const { validateEmail, validatePassword, validatePasswordConfirmation, validateCreateElection, validateCreateCandidate, validateVote } = require('../middleware/validationMiddleware');
+const { validateEmail, validatePassword, validatePasswordConfirmation, validateCreateElection, validateCreateCandidate, validateVote, handleValidationErrors } = require('../middleware/validationMiddleware');
 const idempotencyGuard = require('../middleware/idempotencyMiddleware');
 
 // Apply general rate limit to all routes
 router.use(generalLimiter);
 
 // ============ Voter Routes ============
-router.post('/voters/register', registerLimiter, validateEmail, validatePassword, validatePasswordConfirmation, registerVoter);
-router.post('/voters/login', loginLimiter, validateEmail, validatePassword, loginVoter);
+// Di file Routes.js, ubah bagian register menjadi seperti ini:
+router.post(
+    '/voters/register', 
+    registerLimiter, 
+    [validateEmail, validatePassword, validatePasswordConfirmation], // Gabungkan rules
+    handleValidationErrors, // Cek error SEKALI SAJA di sini
+    registerVoter           // Jika lolos, baru jalankan controller
+);
+
+// Lakukan hal yang sama untuk login:
+router.post(
+    '/voters/login', 
+    loginLimiter, 
+    [validateEmail, validatePassword], 
+    handleValidationErrors, 
+    loginVoter
+);
 router.get('/voters/:id', authMiddleware, getVoter);
 
 // ============ Election Routes ============
