@@ -29,8 +29,15 @@ class ElectionService {
     async createElection(data, file) {
         const { title, description } = data;
         let uploadedImageUrl = null;
-
+        let election = null;
         try {
+            election = await withTransaction(async (session) => {
+
+            const electionExists = await this.electionRepository.findByTitle(title, { session });
+            if (electionExists) {
+                throw new HttpError('Election with this title already exists', 400);
+            }
+
             // Upload image to Cloudinary (with circuit breaker)
             uploadedImageUrl = await cloudinaryBreaker.execute(
                 async () => await this.uploadImage(file, 'elections'),
@@ -42,12 +49,16 @@ class ElectionService {
             }
 
             // Create election
-            const election = await this.electionRepository.create({
+            const newElection = await this.electionRepository.create({
                 title,
                 description,
                 thumbnail: uploadedImageUrl
+            }, { session });
+            return newElection;
             });
 
+            // Invalidate elections cache
+            await cacheService.invalidateElection();
             // Emit event
             eventEmitter.emitElectionCreated({
                 electionId: election._id,
@@ -58,10 +69,16 @@ class ElectionService {
             return election;
 
         } catch (error) {
-            // Clean up Cloudinary image if creation fails
+            // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
             if (uploadedImageUrl) {
-                await deleteFromCloudinary(uploadedImageUrl);
+                deleteFromCloudinary(uploadedImageUrl).catch(cleanupErr => {
+                    console.error(`[CRITICAL] Orphan file detected! Manual cleanup needed for: ${uploadedImageUrl}`);
+                    // Jika Anda sudah membuat fitur FailedDeletions, panggil di sini:
+                    FailedDeletion.create({ publicId: extractPublicId(uploadedImageUrl), imageUrl: uploadedImageUrl });
+                });
             }
+            
+            console.error(`Election creation failed: ${error.message}`);
             throw error;
         }
     }
@@ -157,33 +174,41 @@ class ElectionService {
      * @returns {Promise<object>}
      */
     async deleteElection(id) {
-        return await withTransaction(async (session) => {
-            const election = await this.electionRepository.findById(id, { session });
+        let election;
+        await withTransaction(async (session) => {
+            election = await this.electionRepository.findById(id, { session });
 
             if (!election) {
                 throw new HttpError('Election not found', 404);
             }
 
-            // Delete thumbnail from Cloudinary (with circuit breaker)
-            await cloudinaryBreaker.execute(
-                async () => await deleteFromCloudinary(election.thumbnail)
-            );
-
             // Delete all candidates
             await this.candidateRepository.deleteByElection(id, { session });
-
+    
             // Delete election
             await this.electionRepository.deleteById(id, { session });
-
-            // Emit event
-            eventEmitter.emitElectionDeleted({
-                electionId: id,
-                title: election.title
-            });
-
-            return election;
         });
-    }
+        if (election && election.thumbnail) {
+                // Gunakan circuit breaker & jangan di-await jika tidak ingin menghambat response
+                // atau gunakan background job/FailedDeletions jika gagal.
+                cloudinaryBreaker.execute(
+                    async () => await deleteFromCloudinary(election.thumbnail)
+                ).catch(err => {
+                    console.error(`[WORKER NEEDED] Gagal hapus gambar Cloudinary: ${election.thumbnail}`);
+                    // Di sini idealnya Anda masukkan ke tabel FailedDeletions
+                    FailedDeletion.create({ publicId: extractPublicId(election.thumbnail), imageUrl: election.thumbnail, reason: err.message });
+                
+                });
+            }
+
+        // Emit event
+        eventEmitter.emitElectionDeleted({
+            electionId: id,
+            title: election.title
+        });
+
+        return election;
+    };
 
     /**
      * Get election candidates
@@ -234,29 +259,35 @@ class ElectionService {
     async uploadImage(file, folder) {
         const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
         const filePath = path.join(__dirname, '..', 'uploads', fileName);
-
+        
+        // Flag untuk mengecek apakah file berhasil dibuat di lokal
+        let fileExists = false;
+    
         try {
-            // Save file locally first
+            // 1. Simpan file ke lokal
             await file.mv(filePath);
-
-            // Upload to Cloudinary
+            fileExists = true; // Tandai file sudah ada
+    
+            // 2. Upload ke Cloudinary
             const imageUrl = await uploadToCloudinary(filePath, folder);
-
-            // Clean up local file
-            await fs.unlink(filePath).catch(err => {
-                console.warn('⚠️  Failed to delete temporary file:', err.message);
-            });
-
+    
             return imageUrl;
-
         } catch (error) {
-            // Clean up local file if upload fails
-            try {
-                await fs.unlink(filePath);
-            } catch (cleanupError) {
-                console.warn('⚠️  Failed to cleanup file after error:', cleanupError.message);
+            console.error('❌ Error in uploadImage service:', error.message);
+            throw error; // Lempar error ke controller
+        } finally {
+            // 3. Bersihkan file lokal hanya jika file tersebut sempat berhasil dibuat
+            if (fileExists) {
+                try {
+                    await fs.unlink(filePath);
+                    // console.log('✅ Temporary file cleaned up');
+                } catch (cleanupError) {
+                    // Gunakan check sederhana agar tidak memenuhi log jika file memang sudah hilang
+                    if (cleanupError.code !== 'ENOENT') {
+                        console.warn('⚠️ Failed to cleanup file:', cleanupError.message);
+                    }
+                }
             }
-            throw error;
         }
     }
 

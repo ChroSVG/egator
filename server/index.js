@@ -10,7 +10,8 @@ const upload = require('express-fileupload');
 const Routes = require('./routes/Routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const cacheService = require('./utils/cacheService');
-
+// Di index.js
+require('./workers/cleanupWorker');
 // Initialize event subscribers (Observer Pattern)
 require('./subscribers/loggingSubscriber');
 

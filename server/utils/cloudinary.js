@@ -139,6 +139,19 @@ async function deleteFromCloudinary(imageUrl) {
         
     } catch (error) {
         console.error('❌ Cloudinary deletion failed:', error.message);
+
+        // Simpan ke database agar bisa di-retry oleh background job
+        await FailedDeletion.findOneAndUpdate(
+            { publicId }, 
+            { 
+                imageUrl, 
+                reason: error.message, 
+                $inc: { attemptCount: 1 },
+                lastAttempt: new Date() 
+            },
+            { upsert: true }
+        ).catch(dbErr => console.error('CRITICAL: Failed to log failed deletion!', dbErr));
+
         // Don't throw - deletion failure shouldn't break the flow
         return { result: 'failed', error: error.message };
     }

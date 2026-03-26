@@ -30,16 +30,18 @@ class CandidateService {
     async createCandidate(data, file) {
         const { fullName, motto, election } = data;
         let uploadedImageUrl = null;
+        let candidate = null;
 
-        return await withTransaction(async (session) => {
-            try {
-                // 1. Verify election exists
+        try {
+            // Jalankan transaksi database
+            candidate = await withTransaction(async (session) => { 
+                // 1. Verifikasi election
                 const electionExists = await this.electionRepository.findById(election, { session });
                 if (!electionExists) {
                     throw new HttpError('Election not found', 404);
                 }
 
-                // 2. Upload image to Cloudinary (with circuit breaker)
+                // 2. Upload image (variabel di luar scope transaksi agar bisa diakses di 'catch')
                 uploadedImageUrl = await cloudinaryBreaker.execute(
                     async () => await this.uploadImage(file, 'candidates'),
                     { fallback: null }
@@ -49,36 +51,43 @@ class CandidateService {
                     throw new HttpError('Failed to upload candidate image', 500);
                 }
 
-                // 3. Create candidate
-                const candidate = await this.candidateRepository.create({
+                // 3. Simpan kandidat
+                const newCandidate = await this.candidateRepository.create({
                     fullName,
                     motto,
                     image: uploadedImageUrl,
                     election
                 }, { session });
 
-                // 4. Add candidate to election
-                await this.electionRepository.addCandidate(election, candidate._id, session);
+                // 4. Update relasi di tabel election
+                await this.electionRepository.addCandidate(election, newCandidate._id, session);
 
-                // 5. Emit event
-                eventEmitter.emitCandidateCreated({
-                    candidateId: candidate._id,
-                    name: candidate.fullName,
-                    electionId: election
+                return newCandidate;
+            });
+
+            // 5. Emit event (Hanya jika transaksi commit sukses)
+            eventEmitter.emitCandidateCreated({
+                candidateId: candidate._id,
+                name: candidate.fullName,
+                electionId: election
+            });
+
+            return candidate;
+
+        } catch (error) {
+            // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
+            if (uploadedImageUrl) {
+                deleteFromCloudinary(uploadedImageUrl).catch(cleanupErr => {
+                    console.error(`[CRITICAL] Orphan file detected! Manual cleanup needed for: ${uploadedImageUrl}`);
+                    // Jika Anda sudah membuat fitur FailedDeletions, panggil di sini:
+                    FailedDeletion.create({ publicId: extractPublicId(uploadedImageUrl), imageUrl: uploadedImageUrl });
                 });
-
-                return candidate;
-
-            } catch (error) {
-                // Clean up Cloudinary image if transaction fails
-                if (uploadedImageUrl && error instanceof HttpError) {
-                    await deleteFromCloudinary(uploadedImageUrl);
-                }
-                throw error;
             }
-        });
+            
+            console.error(`Candidate creation failed: ${error.message}`);
+            throw error;
+        }
     }
-
     /**
      * Get all candidates with filtering and pagination
      * @param {object} filters - Query filters
@@ -140,33 +149,43 @@ class CandidateService {
      * @returns {Promise<object>}
      */
     async deleteCandidate(id) {
-        return await withTransaction(async (session) => {
-            const candidate = await this.candidateRepository.findById(id, { session });
+    let candidate;
+    
+    // 1. Jalankan transaksi Database saja
+    await withTransaction(async (session) => {
+        candidate = await this.candidateRepository.findById(id, { session });
 
-            if (!candidate) {
-                throw new HttpError('Candidate not found', 404);
-            }
+        if (!candidate) {
+            throw new HttpError('Candidate not found', 404);
+        }
 
-            // Delete image from Cloudinary (with circuit breaker)
-            await cloudinaryBreaker.execute(
-                async () => await deleteFromCloudinary(candidate.image)
-            );
+        // Hapus relasi dan data di DB
+        await this.electionRepository.removeCandidate(candidate.election, id, session);
+        await this.candidateRepository.deleteById(id, { session });
+    });
 
-            // Remove from election
-            await this.electionRepository.removeCandidate(candidate.election, id, session);
-
-            // Delete candidate
-            await this.candidateRepository.deleteById(id, { session });
-
-            // Emit event
-            eventEmitter.emitCandidateDeleted({
-                candidateId: id,
-                name: candidate.fullName
-            });
-
-            return candidate;
+    // 2. Jika kode sampai di sini, artinya Transaksi DB SUKSES (Commit)
+    // Sekarang baru aman hapus gambar di Cloudinary
+    if (candidate && candidate.image) {
+        // Gunakan circuit breaker & jangan di-await jika tidak ingin menghambat response
+        // atau gunakan background job/FailedDeletions jika gagal.
+        cloudinaryBreaker.execute(
+            async () => await deleteFromCloudinary(candidate.image)
+        ).catch(err => {
+            console.error(`[WORKER NEEDED] Gagal hapus gambar Cloudinary: ${candidate.image}`);
+            // Di sini idealnya Anda masukkan ke tabel FailedDeletions
+            FailedDeletion.create({ publicId: extractPublicId(candidate.image), imageUrl: candidate.image, reason: err.message });
         });
     }
+
+    // 3. Emit event
+    eventEmitter.emitCandidateDeleted({
+        candidateId: id,
+        name: candidate.fullName
+    });
+
+    return candidate;
+};
 
     /**
      * Upload image to Cloudinary
@@ -175,33 +194,39 @@ class CandidateService {
      * @returns {Promise<string>}
      */
     async uploadImage(file, folder) {
-        const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
-        const filePath = path.join(__dirname, '..', 'uploads', fileName);
+    const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
+    const filePath = path.join(__dirname, '..', 'uploads', fileName);
+    
+    // Flag untuk mengecek apakah file berhasil dibuat di lokal
+    let fileExists = false;
 
-        try {
-            // Save file locally first
-            await file.mv(filePath);
+    try {
+        // 1. Simpan file ke lokal
+        await file.mv(filePath);
+        fileExists = true; // Tandai file sudah ada
 
-            // Upload to Cloudinary
-            const imageUrl = await uploadToCloudinary(filePath, folder);
+        // 2. Upload ke Cloudinary
+        const imageUrl = await uploadToCloudinary(filePath, folder);
 
-            // Clean up local file
-            await fs.unlink(filePath).catch(err => {
-                console.warn('⚠️  Failed to delete temporary file:', err.message);
-            });
-
-            return imageUrl;
-
-        } catch (error) {
-            // Clean up local file if upload fails
+        return imageUrl;
+    } catch (error) {
+        console.error('❌ Error in uploadImage service:', error.message);
+        throw error; // Lempar error ke controller
+    } finally {
+        // 3. Bersihkan file lokal hanya jika file tersebut sempat berhasil dibuat
+        if (fileExists) {
             try {
                 await fs.unlink(filePath);
+                // console.log('✅ Temporary file cleaned up');
             } catch (cleanupError) {
-                console.warn('⚠️  Failed to cleanup file after error:', cleanupError.message);
+                // Gunakan check sederhana agar tidak memenuhi log jika file memang sudah hilang
+                if (cleanupError.code !== 'ENOENT') {
+                    console.warn('⚠️ Failed to cleanup file:', cleanupError.message);
+                }
             }
-            throw error;
         }
     }
+}
 }
 
 module.exports = CandidateService;
