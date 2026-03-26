@@ -1,12 +1,12 @@
 const CandidateService = require('../services/candidateService');
 const VotingService = require('../services/votingService');
-const VoteCommand = require('../commands/voteCommand').VoteCommand;
+const {VoteCommand, CommandHandler} = require('../commands/voteCommand');
 const cacheService = require('../utils/cacheService');
-const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const HttpError = require('../models/errorModel');
 
 const candidateService = new CandidateService();
 const votingService = new VotingService();
+const voteHandler = new CommandHandler();
 
 /**
  * Add Candidate
@@ -32,7 +32,7 @@ const addCandidate = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateCandidate();
 
-        res.status(201).json({
+        return res.status(201).json({
             message: 'Candidate added successfully!',
             data: candidate
         });
@@ -66,7 +66,7 @@ const getCandidates = async (req, res, next) => {
             300 // 5 minutes TTL
         );
 
-        res.json({
+        return res.json({
             status: 200,
             ...result
         });
@@ -94,7 +94,7 @@ const getSingleCandidate = async (req, res, next) => {
             600 // 10 minutes TTL
         );
 
-        res.json({
+        return res.json({
             message: 'Candidate retrieved successfully!',
             data: candidate
         });
@@ -129,13 +129,12 @@ const voteForCandidate = async (req, res, next) => {
         }
 
         // Execute command
-        const result = await voteCommand.execute();
-
+        await voteHandler.executeCommand(voteCommand);
         // Invalidate cache for this election
         await cacheService.invalidateElection(selectedElectionId);
         await cacheService.invalidateCandidate(candidateId);
 
-        res.json({
+        return res.json({
             message: 'Vote registered successfully!',
             candidate: candidateId
         });
@@ -143,6 +142,13 @@ const voteForCandidate = async (req, res, next) => {
         next(error);
     }
 };
+
+    // Tambahkan fungsi baru untuk melihat history jika diperlukan
+const getVoteHistory = async (req, res) => {
+    return res.json(voteHandler.getHistory()); // Mengambil 10 history terakhir
+};
+
+
 
 /**
  * Delete Candidate
@@ -161,7 +167,7 @@ const deleteCandidate = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateCandidate(id);
 
-        res.json({
+        return res.json({
             message: 'Candidate deleted successfully!',
             data: candidate
         });
@@ -175,5 +181,6 @@ module.exports = {
     getCandidates,
     getSingleCandidate,
     voteForCandidate,
-    deleteCandidate
+    deleteCandidate,
+    getVoteHistory,
 };

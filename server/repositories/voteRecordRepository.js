@@ -43,8 +43,8 @@ class VoteRecordRepository extends BaseRepository {
      * @param {string} electionId - Election ID
      * @returns {Promise<boolean>}
      */
-    async hasVoted(voterId, electionId) {
-        return await this.exists({ voter: voterId, election: electionId });
+    async hasVoted(voterId, electionId, options = {}) {
+        return await this.exists({ voter: voterId, election: electionId }, options);
     }
 
     /**

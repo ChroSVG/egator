@@ -38,42 +38,45 @@ class VoteCommand {
      * @returns {Promise<object>}
      */
     async execute() {
-        if (this.executed) {
-            throw new Error('Command already executed');
-        }
+    if (this.executed) {
+        throw new Error('Command already executed');
+    }
 
+    // Pastikan menggunakan return await agar error tertangkap dengan benar oleh handler
+    return await withTransaction(async (session) => {
         try {
-            // Store previous state for potential undo
-            const candidate = await this.candidateRepository.findById(this.candidateId);
+            // 1. Tambahkan { session } pada setiap pembacaan data di dalam transaksi
+            const candidate = await this.candidateRepository.findById(this.candidateId, { session });
             const hasVoted = await this.voterRepository.exists({
                 _id: this.voterId,
                 votedElections: this.electionId
-            });
+            }, { session }); // Gunakan session di sini
             
             this.previousState = {
                 candidateVoteCount: candidate?.voteCount || 0,
                 voterHasVoted: hasVoted
             };
 
-            // Execute vote through service layer
+            // 2. KRUSIAL: Teruskan session ke service layer
             const result = await this.votingService.castVote(
                 this.voterId,
                 this.candidateId,
-                this.electionId
+                this.electionId,
+                { session } // Pastikan fungsi castVote di votingService menerima parameter ini
             );
 
             this.executed = true;
-
-            // Log command execution
             this.log('EXECUTED', result);
 
             return result;
 
         } catch (error) {
             this.log('FAILED', error.message);
+            // Tetap throw error agar withTransaction memicu abortTransaction/rollback
             throw error;
         }
-    }
+    });
+}
 
     /**
      * Undo the vote command
@@ -89,18 +92,19 @@ class VoteCommand {
             // Remove vote record
             await this.voteRecordRepository.deleteVote(
                 this.voterId,
-                this.electionId
+                this.electionId,
+                session 
             );
 
             // Decrement candidate vote count
-            await this.candidateRepository.decrementVoteCount(this.candidateId);
+            await this.candidateRepository.decrementVoteCount(this.candidateId, 1, session );
 
             // Update voter's voted elections
-            const voter = await this.voterRepository.findById(this.voterId);
+            const voter = await this.voterRepository.findById(this.voterId, {session});
             voter.votedElections = voter.votedElections.filter(
                 id => id.toString() !== this.electionId
             );
-            await voter.save();
+            await voter.save({ session });
 
             this.executed = false;
 

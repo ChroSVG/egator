@@ -131,7 +131,26 @@ class VoterRepository extends BaseRepository {
             totalAdmins,
             totalRegularVoters: totalVoters - totalAdmins
         };
+    };
+
+
+    /**
+     *  Update Many Voters after deleting election
+     *  @param {string} id
+     *  @return {Promise<object>}
+     */
+    // Di VoterRepository.js
+    async removeElectionReference(electionId, options = {}) {
+        const { session = null } = options; // Mengambil session dari objek options
+        return await this.model.updateMany(
+            { votedElections: electionId },
+            { $pull: { votedElections: electionId } },
+            { session } // Mongoose mengharapkan session di dalam objek opsi
+        );
     }
-}
+
+
+
+};
 
 module.exports = VoterRepository;

@@ -8,7 +8,6 @@ const {
     getSingleElection,
     getCandidatesOfElection,
     getVotersOfElection,
-    getElectionVoters,
     getElectionResults,
     updateElection,
     deleteElection
@@ -58,7 +57,6 @@ router.delete('/elections/:id', authMiddleware, adminLimiter, adminOnly, deleteE
 router.get('/elections/:id/candidates', authMiddleware, getCandidatesOfElection);
 router.get('/elections/:id/voters', authMiddleware, getVotersOfElection);
 router.get('/elections/:electionId/results', authMiddleware, getElectionResults);
-router.get('/elections/:electionId/voters', authMiddleware, getElectionVoters);
 
 // ============ Candidate Routes ============
 router.post('/candidates/', authMiddleware, adminLimiter, validateCreateCandidate, adminOnly, addCandidate);

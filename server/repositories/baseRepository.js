@@ -166,8 +166,8 @@ class BaseRepository {
      * @param {object} filter - Query filter
      * @returns {Promise<boolean>}
      */
-    async exists(filter) {
-        const doc = await this.findOne(filter);
+    async exists(filter, options = {}) {
+        const doc = await this.findOne(filter, options);
         return doc !== null;
     }
 

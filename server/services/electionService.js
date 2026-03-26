@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuid } = require('uuid');
 const ElectionRepository = require('../repositories/electionRepository');
+const VoterRepository = require('../repositories/voterRepository');
 const CandidateRepository = require('../repositories/candidateRepository');
 const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const eventEmitter = require('../utils/eventEmitter');
@@ -27,6 +28,7 @@ class ElectionService {
     constructor() {
         this.electionRepository = new ElectionRepository();
         this.candidateRepository = new CandidateRepository();
+        this.voterRepository = new VoterRepository();
     }
 
     /**
@@ -78,7 +80,7 @@ class ElectionService {
         } catch (error) {
             // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
             if (uploadedImageUrl) {
-                safeCloudinaryDelete(election.thumbnail)
+                safeCloudinaryDelete(election.thumbnail);
             }
             
             console.error(`Election creation failed: ${error.message}`);
@@ -195,8 +197,11 @@ async updateElection(id, data, file = null) {
 
         await this.candidateRepository.deleteByElection(id, { session });
         await this.electionRepository.deleteById(id, { session });
+        
+        // TAMBAHKAN INI: Hapus referensi electionId dari semua voter
+        await this.voterRepository.removeElectionReference(id, {session})
     });
-
+    
     // JAUH LEBIH BERSIH:
     // Panggil helper yang sudah menangani circuit breaker, catch error, 
     // extractPublicId, dan pencatatan ke tabel FailedDeletion secara otomatis.
@@ -233,10 +238,13 @@ async updateElection(id, data, file = null) {
      * @returns {Promise<Array>}
      */
     async getElectionVoters(electionId) {
-        const VoterRepository = require('../repositories/voterRepository');
-        const voterRepository = new VoterRepository();
+        const election = await this.electionRepository.findById(electionId);
+        
+        if (!election) {
+            throw new HttpError('Election not found', 404);
+        }
 
-        return await voterRepository.findVotersByElection(electionId, {
+        return await this.voterRepository.findVotersByElection(electionId, {
             select: 'fullName email createdAt'
         });
     }

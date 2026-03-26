@@ -57,7 +57,7 @@ const getElections = async (req, res, next) => {
             300 // 5 minutes TTL
         );
 
-        res.json({
+        return res.json({
             message: 'Elections retrieved successfully!',
             ...result
         });
@@ -86,7 +86,7 @@ const getSingleElection = async (req, res, next) => {
             600 // 10 minutes TTL
         );
 
-        res.json({
+        return res.json({
             message: 'Election retrieved successfully!',
             data: election
         });
@@ -117,7 +117,7 @@ const updateElection = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateElection(id);
 
-        res.json({
+        return res.json({
             message: 'Election updated successfully!',
             data: election
         });
@@ -143,7 +143,7 @@ const deleteElection = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateElection(id);
 
-        res.json({
+        return res.json({
             message: 'Election deleted successfully!',
             data: election
         });
@@ -162,7 +162,7 @@ const getCandidatesOfElection = async (req, res, next) => {
 
         const candidates = await electionService.getElectionCandidates(id);
 
-        res.json({
+        return res.json({
             message: 'Election candidates retrieved successfully!',
             count: candidates.length,
             data: candidates
@@ -182,7 +182,7 @@ const getVotersOfElection = async (req, res, next) => {
 
         const voters = await electionService.getElectionVoters(id);
 
-        res.json({
+        return res.json({
             message: 'Election voters retrieved successfully!',
             count: voters.length,
             data: voters
@@ -220,24 +220,6 @@ const getElectionResults = async (req, res, next) => {
     }
 };
 
-/**
- * Get All Voters of an Election
- * GET /api/elections/:electionId/voters
- */
-const getElectionVoters = async (req, res, next) => {
-    try {
-        const { electionId } = req.params;
-
-        const voters = await electionService.getElectionVoters(electionId);
-
-        res.json({
-            count: voters.length,
-            voters: voters
-        });
-    } catch (error) {
-        next(error);
-    }
-};
 
 module.exports = {
     addElection,
@@ -245,7 +227,6 @@ module.exports = {
     getSingleElection,
     getCandidatesOfElection,
     getVotersOfElection,
-    getElectionVoters,
     getElectionResults,
     updateElection,
     deleteElection

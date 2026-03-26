@@ -10,7 +10,9 @@ class ElectionRepository extends BaseRepository {
     constructor() {
         super(Election);
     }
+    
 
+    
     /**
      * Find election by title
      * @param {string} title - Election title

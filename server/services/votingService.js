@@ -6,6 +6,7 @@ const VoteRecordRepository = require('../repositories/voteRecordRepository');
 const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const { withTransaction } = require('../utils/transactionHelper');
+const { startSession } = require('../models/candidateModel');
 
 /**
  * Voting Service
@@ -30,59 +31,59 @@ class VotingService {
      * @param {string} electionId - Election ID
      * @returns {Promise<object>}
      */
-    async castVote(voterId, candidateId, electionId) {
-        return await withTransaction(async (session) => {
-            // 1. Verify candidate exists and belongs to election
-            const candidate = await this.candidateRepository.findById(candidateId, { session });
-            if (!candidate) {
-                throw new HttpError('Candidate not found', 404);
-            }
+    async castVote(voterId, candidateId, electionId,       options = {}) {
+        
+        const { session } = options;
+        // 1. Verify candidate exists and belongs to election
+        const candidate = await this.candidateRepository.findById(candidateId, { session });
+        if (!candidate) {
+            throw new HttpError('Candidate not found', 404);
+        }
 
-            if (candidate.election.toString() !== electionId) {
-                throw new HttpError('Candidate does not belong to the specified election', 400);
-            }
+        if (candidate.election.toString() !== electionId) {
+            throw new HttpError('Candidate does not belong to the specified election', 400);
+        }
 
-            // 2. Verify voter exists
-            const voter = await this.voterRepository.findById(voterId, { session });
-            if (!voter) {
-                throw new HttpError('Voter not found', 404);
-            }
+        // 2. Verify voter exists
+        const voter = await this.voterRepository.findById(voterId, { session });
+        if (!voter) {
+            throw new HttpError('Voter not found', 404);
+        }
 
-            // 3. Check if voter already voted (using VoteRecord for authoritative check)
-            const alreadyVoted = await this.voteRecordRepository.hasVoted(voterId, electionId);
-            if (alreadyVoted) {
-                throw new HttpError('You have already voted in this election', 409);
-            }
+        // 3. Check if voter already voted (using VoteRecord for authoritative check)
+        const alreadyVoted = await this.voteRecordRepository.hasVoted(voterId, electionId, {session});
+        if (alreadyVoted) {
+            throw new HttpError('You have already voted in this election', 409);
+        }
 
-            // 4. Record the vote (with unique constraint protection)
-            await this.voteRecordRepository.recordVote({
-                voter: voterId,
-                election: electionId,
-                candidate: candidateId
-            }, session);
+        // 4. Record the vote (with unique constraint protection)
+        await this.voteRecordRepository.recordVote({
+            voter: voterId,
+            election: electionId,
+            candidate: candidateId
+        }, session);
 
-            // 5. Update voter's voted elections
-            await this.voterRepository.recordVote(voterId, electionId, session);
+        // 5. Update voter's voted elections
+        await this.voterRepository.recordVote(voterId, electionId, session);
 
-            // 6. Increment candidate's vote count (atomic operation)
-            await this.candidateRepository.incrementVoteCount(candidateId, 1, session);
+        // 6. Increment candidate's vote count (atomic operation)
+        await this.candidateRepository.incrementVoteCount(candidateId, 1, session);
 
-            // 7. Emit event for observers
-            eventEmitter.emitVoteCast({
-                voterId,
-                candidateId,
-                electionId
-            });
-
-            return {
-                message: 'Vote registered successfully!',
-                candidate: {
-                    id: candidateId,
-                    name: candidate.fullName,
-                    voteCount: candidate.voteCount + 1
-                }
-            };
+        // 7. Emit event for observers
+        eventEmitter.emitVoteCast({
+            voterId,
+            candidateId,
+            electionId
         });
+
+        return {
+            message: 'Vote registered successfully!',
+            candidate: {
+                id: candidateId,
+                name: candidate.fullName,
+                voteCount: candidate.voteCount + 1
+            }
+        };
     }
 
     /**
