@@ -12,6 +12,39 @@ class ElectionRepository extends BaseRepository {
     }
 
     /**
+     * Find election by title
+     * @param {string} title - Election title
+     * @returns {Promise<object|null>}
+     */
+    async findByTitle(title) {
+        return await this.model.findOne({ title });
+    }
+
+    /**
+     * Get elections with pagination and optional filters
+     * @param {object} filters - Filter options (search, sort, page, limit)
+     * @returns {Promise<object>}
+     */
+    async paginate(filters = {}) {
+        const { search, sort, page = 1, limit = 10 } = filters;
+
+        let query = {};
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const options = {
+            sort: sort === 'createdAt' ? { createdAt: -1 } : { createdAt: 1 }
+        };
+
+        return await super.paginate(query, page, limit, options);
+    }
+
+
+    /**
      * Find election with candidates populated
      * @param {string} id - Election ID
      * @returns {Promise<object|null>}

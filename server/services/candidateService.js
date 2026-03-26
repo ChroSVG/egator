@@ -3,12 +3,21 @@ const fs = require('fs').promises;
 const { v4: uuid } = require('uuid');
 const CandidateRepository = require('../repositories/candidateRepository');
 const ElectionRepository = require('../repositories/electionRepository');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
 const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const mongoose = require('mongoose');
 const { withTransaction } = require('../utils/transactionHelper');
+// Tambahkan/Update baris ini di bagian atas file service
+const FailedDeletion = require('../models/failedDeletionModel'); 
+const { 
+    uploadToCloudinary, 
+    deleteFromCloudinary, 
+    extractPublicId // Pastikan ini di-import
+} = require('../utils/cloudinary');
+
+const { safeCloudinaryDelete } = require('../utils/helper'); // Import helper untuk safe delete
+
 
 /**
  * Candidate Service
@@ -77,11 +86,7 @@ class CandidateService {
         } catch (error) {
             // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
             if (uploadedImageUrl) {
-                deleteFromCloudinary(uploadedImageUrl).catch(cleanupErr => {
-                    console.error(`[CRITICAL] Orphan file detected! Manual cleanup needed for: ${uploadedImageUrl}`);
-                    // Jika Anda sudah membuat fitur FailedDeletions, panggil di sini:
-                    FailedDeletion.create({ publicId: extractPublicId(uploadedImageUrl), imageUrl: uploadedImageUrl });
-                });
+                safeCloudinaryDelete(uploadedImageUrl);
             }
             
             console.error(`Candidate creation failed: ${error.message}`);
@@ -167,15 +172,7 @@ class CandidateService {
     // 2. Jika kode sampai di sini, artinya Transaksi DB SUKSES (Commit)
     // Sekarang baru aman hapus gambar di Cloudinary
     if (candidate && candidate.image) {
-        // Gunakan circuit breaker & jangan di-await jika tidak ingin menghambat response
-        // atau gunakan background job/FailedDeletions jika gagal.
-        cloudinaryBreaker.execute(
-            async () => await deleteFromCloudinary(candidate.image)
-        ).catch(err => {
-            console.error(`[WORKER NEEDED] Gagal hapus gambar Cloudinary: ${candidate.image}`);
-            // Di sini idealnya Anda masukkan ke tabel FailedDeletions
-            FailedDeletion.create({ publicId: extractPublicId(candidate.image), imageUrl: candidate.image, reason: err.message });
-        });
+        safeCloudinaryDelete(candidate.image);
     }
 
     // 3. Emit event

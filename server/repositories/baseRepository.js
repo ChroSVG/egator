@@ -99,12 +99,20 @@ class BaseRepository {
      * @returns {Promise<object|null>}
      */
     async updateById(id, update, options = {}) {
-        const { newDoc = true, runValidators = true, session = null } = options;
+        // 1. Ambil session jika ada (untuk transaksi)
+        const { session = null } = options;
         
         return await this.model.findByIdAndUpdate(
             id,
-            update,
-            { new: newDoc, runValidators, session }
+            // 2. Gunakan $set untuk memastikan hanya field yang dikirim yang diupdate
+            { $set: update }, 
+            { 
+                // 3. Gunakan returnDocument: 'after' untuk menggantikan new: true (menghapus warning)
+                returnDocument: 'after', 
+                // 4. Set runValidators ke false agar tidak protes kolom required lain saat update parsial
+                runValidators: false, 
+                session 
+            }
         );
     }
 

@@ -44,7 +44,7 @@ const addElection = async (req, res, next) => {
  */
 const getElections = async (req, res, next) => {
     try {
-        const { isActive, page = 1, limit = 10 } = req.query;
+        const { isActive = 'true', page = 1, limit = 10 } = req.query;
 
         // Try cache first
         const cacheKey = `elections:${isActive}:${page}:${limit}`;

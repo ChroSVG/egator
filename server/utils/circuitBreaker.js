@@ -254,7 +254,7 @@ const registry = new CircuitBreakerRegistry();
 // Pre-configured circuit breakers
 const cloudinaryBreaker = registry.get('cloudinary', {
     failureThreshold: 3,
-    timeout: 20000,
+    timeout: 10000,
     monitoringPeriod: 30000
 });
 

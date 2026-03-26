@@ -3,11 +3,20 @@ const fs = require('fs').promises;
 const { v4: uuid } = require('uuid');
 const ElectionRepository = require('../repositories/electionRepository');
 const CandidateRepository = require('../repositories/candidateRepository');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
 const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const { withTransaction } = require('../utils/transactionHelper');
+const cacheService = require('../utils/cacheService');
+// Tambahkan/Update baris ini di bagian atas file service
+const FailedDeletion = require('../models/failedDeletionModel'); 
+const { 
+    uploadToCloudinary, 
+    deleteFromCloudinary, 
+    extractPublicId // Pastikan ini di-import
+} = require('../utils/cloudinary');
+const {safeCloudinaryDelete} = require('../utils/helper')
+
 
 /**
  * Election Service
@@ -57,8 +66,6 @@ class ElectionService {
             return newElection;
             });
 
-            // Invalidate elections cache
-            await cacheService.invalidateElection();
             // Emit event
             eventEmitter.emitElectionCreated({
                 electionId: election._id,
@@ -71,11 +78,7 @@ class ElectionService {
         } catch (error) {
             // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
             if (uploadedImageUrl) {
-                deleteFromCloudinary(uploadedImageUrl).catch(cleanupErr => {
-                    console.error(`[CRITICAL] Orphan file detected! Manual cleanup needed for: ${uploadedImageUrl}`);
-                    // Jika Anda sudah membuat fitur FailedDeletions, panggil di sini:
-                    FailedDeletion.create({ publicId: extractPublicId(uploadedImageUrl), imageUrl: uploadedImageUrl });
-                });
+                safeCloudinaryDelete(election.thumbnail)
             }
             
             console.error(`Election creation failed: ${error.message}`);
@@ -125,48 +128,59 @@ class ElectionService {
         return election;
     }
 
-    /**
-     * Update election
-     * @param {string} id - Election ID
-     * @param {object} data - Update data
-     * @param {object} file - New thumbnail file (optional)
-     * @returns {Promise<object>}
-     */
-    async updateElection(id, data, file = null) {
-        const { title, description } = data;
-
-        const election = await this.electionRepository.findById(id);
-
-        if (!election) {
-            throw new HttpError('Election not found', 404);
-        }
-
-        const updateData = { title, description };
-
-        // Handle new thumbnail
-        if (file) {
-            // Delete old image from Cloudinary (with circuit breaker)
-            await cloudinaryBreaker.execute(
-                async () => await deleteFromCloudinary(election.thumbnail)
-            );
-
-            // Upload new image
-            updateData.thumbnail = await cloudinaryBreaker.execute(
-                async () => await this.uploadImage(file, 'elections'),
-                { fallback: election.thumbnail } // Keep old image if upload fails
-            );
-        }
-
-        const updatedElection = await this.electionRepository.updateById(id, updateData);
-
-        // Emit event
-        eventEmitter.emitElectionUpdated({
-            electionId: id,
-            title: updatedElection.title
-        });
-
-        return updatedElection;
+/**
+ * Update election (Mendukung Partial Update)
+ * @param {string} id - Election ID
+ * @param {object} data - Update data (bisa hanya title atau description saja)
+ * @param {object} file - New thumbnail file (optional)
+ * @returns {Promise<object>}
+ */
+async updateElection(id, data, file = null) {
+    // 1. Cari data lama untuk validasi dan referensi thumbnail
+    const election = await this.electionRepository.findById(id);
+    if (!election) {
+        throw new HttpError('Election not found', 404);
     }
+
+    // 2. Bangun objek update secara dinamis (Hanya kolom yang ada di 'data' yang dimasukkan)
+    const updateData = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+
+    // 3. Handle thumbnail baru jika ada
+    if (file) {
+        // HAPUS LAMA (Non-blocking: Kita tidak menunggu proses ini selesai)
+        safeCloudinaryDelete(election.thumbnail);
+
+        // UPLOAD BARU (Tetap ditunggu karena kita butuh URL-nya untuk disimpan ke DB)
+        const newThumbnail = await cloudinaryBreaker.execute(
+            async () => await this.uploadImage(file, 'elections'),
+            { fallback: null }
+        );
+
+        if (newThumbnail) {
+            updateData.thumbnail = newThumbnail;
+        }
+    }
+
+    // 4. Jika tidak ada data yang diupdate, langsung kembalikan data lama
+    if (Object.keys(updateData).length === 0) {
+        return election;
+    }
+
+    // 5. Eksekusi update ke database
+    const updatedElection = await this.electionRepository.updateById(id, updateData);
+
+
+    // 7. Emit event untuk sistem lain (misal: log atau real-time dashboard)
+    eventEmitter.emitElectionUpdated({
+        electionId: id,
+        title: updatedElection.title
+    });
+
+    return updatedElection;
+}
+
 
     /**
      * Delete election
@@ -174,41 +188,27 @@ class ElectionService {
      * @returns {Promise<object>}
      */
     async deleteElection(id) {
-        let election;
-        await withTransaction(async (session) => {
-            election = await this.electionRepository.findById(id, { session });
+    let election;
+    await withTransaction(async (session) => {
+        election = await this.electionRepository.findById(id, { session });
+        if (!election) throw new HttpError('Election not found', 404);
 
-            if (!election) {
-                throw new HttpError('Election not found', 404);
-            }
+        await this.candidateRepository.deleteByElection(id, { session });
+        await this.electionRepository.deleteById(id, { session });
+    });
 
-            // Delete all candidates
-            await this.candidateRepository.deleteByElection(id, { session });
-    
-            // Delete election
-            await this.electionRepository.deleteById(id, { session });
-        });
-        if (election && election.thumbnail) {
-                // Gunakan circuit breaker & jangan di-await jika tidak ingin menghambat response
-                // atau gunakan background job/FailedDeletions jika gagal.
-                cloudinaryBreaker.execute(
-                    async () => await deleteFromCloudinary(election.thumbnail)
-                ).catch(err => {
-                    console.error(`[WORKER NEEDED] Gagal hapus gambar Cloudinary: ${election.thumbnail}`);
-                    // Di sini idealnya Anda masukkan ke tabel FailedDeletions
-                    FailedDeletion.create({ publicId: extractPublicId(election.thumbnail), imageUrl: election.thumbnail, reason: err.message });
-                
-                });
-            }
+    // JAUH LEBIH BERSIH:
+    // Panggil helper yang sudah menangani circuit breaker, catch error, 
+    // extractPublicId, dan pencatatan ke tabel FailedDeletion secara otomatis.
+    safeCloudinaryDelete(election.thumbnail);
 
-        // Emit event
-        eventEmitter.emitElectionDeleted({
-            electionId: id,
-            title: election.title
-        });
+    eventEmitter.emitElectionDeleted({
+        electionId: id,
+        title: election.title
+    });
 
-        return election;
-    };
+    return election;
+};
 
     /**
      * Get election candidates
