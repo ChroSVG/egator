@@ -16,6 +16,8 @@ const VoteRecordRepository = require('../repositories/voteRecordRepository');
 const CandidateRepository = require('../repositories/candidateRepository');
 const VoterRepository = require('../repositories/voterRepository');
 const eventEmitter = require('../utils/eventEmitter');
+const withTransaction = require('../utils/transactionHelper').withTransaction;
+const HttpError = require('../models/errorModel');
 
 class VoteCommand {
     constructor(voterId, candidateId, electionId) {
