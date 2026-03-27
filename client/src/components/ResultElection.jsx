@@ -75,7 +75,7 @@ const ResultElection = ({ _id: id, thumbnail, title }) => {
                         />
                     ))
                 ) : (
-                    <p>No candidates found</p>
+                    <p>No candidates found </p>
                 )}
             </ul>
             

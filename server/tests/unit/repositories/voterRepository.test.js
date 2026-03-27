@@ -174,7 +174,7 @@ describe('VoterRepository', () => {
 
             expect(Voter.findByIdAndUpdate).toHaveBeenCalledWith(
                 'voter-id',
-                { password: 'new-hashed-password' },
+                { $set: { password: 'new-hashed-password' } },
                 expect.any(Object)
             );
         });
