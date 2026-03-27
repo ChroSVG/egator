@@ -31,7 +31,7 @@ const validateEmail = [
         .isEmail().withMessage('Please provide a valid email address')
         .normalizeEmail()
         .isLength({ max: 255 }).withMessage('Email must be less than 255 characters'),
-    handleValidationErrors
+    
 ];
 
 // Password validation rule (strong password)
@@ -39,9 +39,9 @@ const validatePassword = [
     body('password')
         .notEmpty().withMessage('Password is required')
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._\-,#^])[A-Za-z\d@$!%*?&._\-,#^]/)
         .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-    handleValidationErrors
+    
 ];
 
 // Password confirmation validation
@@ -54,7 +54,7 @@ const validatePasswordConfirmation = [
             }
             return true;
         }),
-    handleValidationErrors
+    
 ];
 
 // Full name validation
@@ -64,7 +64,7 @@ const validateFullName = [
         .notEmpty().withMessage('Full name is required')
         .isLength({ min: 2, max: 100 }).withMessage('Full name must be between 2 and 100 characters')
         .matches(/^[a-zA-Z\s]+$/).withMessage('Full name can only contain letters and spaces'),
-    handleValidationErrors
+    
 ];
 
 // Election ID validation
@@ -72,7 +72,7 @@ const validateElectionId = [
     param('id')
         .notEmpty().withMessage('Election ID is required')
         .isMongoId().withMessage('Invalid election ID format'),
-    handleValidationErrors
+    
 ];
 
 // Candidate ID validation
@@ -80,7 +80,7 @@ const validateCandidateId = [
     param('id')
         .notEmpty().withMessage('Candidate ID is required')
         .isMongoId().withMessage('Invalid candidate ID format'),
-    handleValidationErrors
+    
 ];
 
 // Voter ID validation
@@ -88,7 +88,7 @@ const validateVoterId = [
     param('id')
         .notEmpty().withMessage('Voter ID is required')
         .isMongoId().withMessage('Invalid voter ID format'),
-    handleValidationErrors
+    
 ];
 
 // Election creation validation
@@ -101,7 +101,7 @@ const validateCreateElection = [
         .trim()
         .notEmpty().withMessage('Election description is required')
         .isLength({ min: 10, max: 2000 }).withMessage('Description must be between 10 and 2000 characters'),
-    handleValidationErrors
+    
 ];
 
 // Candidate creation validation
@@ -117,7 +117,7 @@ const validateCreateCandidate = [
     body('election')
         .notEmpty().withMessage('Election ID is required')
         .isMongoId().withMessage('Invalid election ID format'),
-    handleValidationErrors
+    
 ];
 
 // Vote submission validation
@@ -125,7 +125,7 @@ const validateVote = [
     body('selectedElectionId')
         .notEmpty().withMessage('Election ID is required')
         .isMongoId().withMessage('Invalid election ID format'),
-    handleValidationErrors
+    
 ];
 
 // Pagination query validation
@@ -138,7 +138,7 @@ const validatePagination = [
         .optional()
         .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
         .toInt(),
-    handleValidationErrors
+    
 ];
 
 // Search query validation
@@ -148,7 +148,7 @@ const validateSearch = [
         .trim()
         .isLength({ max: 100 }).withMessage('Search query must be less than 100 characters')
         .escape(),
-    handleValidationErrors
+    
 ];
 
 module.exports = {

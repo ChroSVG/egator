@@ -32,8 +32,12 @@ router.use(generalLimiter);
 // Di file Routes.js, ubah bagian register menjadi seperti ini:
 router.post(
     '/voters/register', 
-    registerLimiter, 
-    [validateEmail, validatePassword, validatePasswordConfirmation], // Gabungkan rules
+    [
+        registerLimiter, 
+        validateEmail,
+        validatePassword, 
+        validatePasswordConfirmation
+    ], // Gabungkan rules
     handleValidationErrors, // Cek error SEKALI SAJA di sini
     registerVoter           // Jika lolos, baru jalankan controller
 );
@@ -42,10 +46,12 @@ router.post(
 router.post(
     '/voters/login', 
     loginLimiter, 
-    [validateEmail, validatePassword], 
+    validateEmail, 
+    validatePassword, 
     handleValidationErrors, 
     loginVoter
 );
+
 router.get('/voters/:id', authMiddleware, getVoter);
 
 // ============ Election Routes ============

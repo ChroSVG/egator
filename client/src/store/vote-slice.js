@@ -3,12 +3,8 @@ import { createSlice }from '@reduxjs/toolkit';
 
 
 
-const currentVoter = {
-    id: 'v1',
-    token: "adsfasdf",
-    isAdmin: true,
-}
-const initialState = {selectedVoteCandidate: "", currentVoter, selectedElection: "", idOfElectionToUpdate: "", addCandidateElectionId: ""}
+const currentVoter = JSON.parse(localStorage.getItem("currentVoter")) || null
+const initialState = {currentVoter, selectedVoteCandidate: "", selectedElection: "", idOfElectionToUpdate: "", addCandidateElectionId: ""}
 
 const voteSlice = createSlice({
     name: 'vote',
@@ -16,6 +12,11 @@ const voteSlice = createSlice({
     reducers: {
         changeSelectedVoteCandidate(state, action) {
             state.selectedVoteCandidate = action.payload
+        },
+        changeCurrentVoter(state, action) {
+            state.currentVoter = action.payload;
+            // Jangan lupa update localStorage juga di sini agar sinkron!
+            localStorage.setItem("currentVoter", JSON.stringify(action.payload));
         },
         changeSelectedElection(state, action) {
             state.selectedElection = action.payload
@@ -25,6 +26,14 @@ const voteSlice = createSlice({
         },
         changeAddCandidateElectionId(state, action) {
             state.addCandidateElectionId = action.payload
+        },
+        // AKSI TAMBAHAN: Logout
+        logoutVoter(state) {
+        state.currentVoter = null;
+        localStorage.removeItem("currentVoter");
+        // Reset state lainnya agar bersih
+        state.selectedVoteCandidate = "";
+        state.selectedElection = "";
         },
         
         

@@ -57,9 +57,13 @@ const getElections = async (req, res, next) => {
             300 // 5 minutes TTL
         );
 
+
+        const { data, ...otherProps } = result;
+
         return res.json({
             message: 'Elections retrieved successfully!',
-            ...result
+            elections: data,
+            ...otherProps,
         });
     } catch (error) {
         next(error);

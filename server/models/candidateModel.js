@@ -24,11 +24,12 @@ const candidateSchema = new Schema({
         type: Number,
         default: 0
     },
-    election: {
+    // candidateModel.js (Jika ingin bisa banyak election)
+    elections: [{
         type: Types.ObjectId,
-        ref: 'Election',
-        required: true
-    }
+        ref: 'Election'
+    }],
+    
 }, { timestamps: true });
 
 // Indexes for better query performance

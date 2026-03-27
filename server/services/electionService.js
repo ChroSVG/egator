@@ -195,7 +195,15 @@ async updateElection(id, data, file = null) {
         election = await this.electionRepository.findById(id, { session });
         if (!election) throw new HttpError('Election not found', 404);
 
-        await this.candidateRepository.deleteByElection(id, { session });
+        // await this.candidateRepository.deleteByElection(id, { session });
+
+        await this.candidateRepository.updateMany(
+            { election: id }, 
+            { $set: { election: null } }, 
+            { session }
+        );
+
+
         await this.electionRepository.deleteById(id, { session });
         
         // TAMBAHKAN INI: Hapus referensi electionId dari semua voter

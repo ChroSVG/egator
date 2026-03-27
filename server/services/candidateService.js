@@ -36,21 +36,41 @@ class CandidateService {
      * @param {object} file - Image file
      * @returns {Promise<object>}
      */
-    async createCandidate(data, file) {
-        const { fullName, motto, election } = data;
-        let uploadedImageUrl = null;
-        let candidate = null;
+    /**
+ * Create or Link a candidate to an election
+ * @param {object} data - Candidate data
+ * @param {object} file - Image file
+ * @returns {Promise<object>}
+ */
+async createCandidate(data, file) {
+    const { fullName, motto, election } = data; // 'election' di sini adalah ID election yang dipilih
+    let uploadedImageUrl = null;
+    let candidate = null;
 
-        try {
-            // Jalankan transaksi database
-            candidate = await withTransaction(async (session) => { 
-                // 1. Verifikasi election
-                const electionExists = await this.electionRepository.findById(election, { session });
-                if (!electionExists) {
-                    throw new HttpError('Election not found', 404);
-                }
+    try {
+        // Jalankan transaksi database
+        candidate = await withTransaction(async (session) => { 
+            // 1. Verifikasi apakah election yang dituju ada
+            const electionExists = await this.electionRepository.findById(election, { session });
+            if (!electionExists) {
+                throw new HttpError('Election not found', 404);
+            }
 
-                // 2. Upload image (variabel di luar scope transaksi agar bisa diakses di 'catch')
+            // 2. Cek apakah kandidat dengan nama ini sudah ada di database
+            // Kita ingin satu kandidat bisa punya banyak election
+            let existingCandidate = await this.candidateRepository.findOne({ fullName }, { session });
+
+            if (existingCandidate) {
+                // JIKA KANDIDAT SUDAH ADA:
+                // Tambahkan ID election baru ke array 'elections' milik kandidat (gunakan $addToSet agar tidak duplikat)
+                candidate = await this.candidateRepository.updateById(
+                    existingCandidate._id,
+                    { $addToSet: { elections: election } },
+                    { session }
+                );
+            } else {
+                // JIKA KANDIDAT BELUM ADA:
+                // Upload image ke Cloudinary
                 uploadedImageUrl = await cloudinaryBreaker.execute(
                     async () => await this.uploadImage(file, 'candidates'),
                     { fallback: null }
@@ -60,39 +80,41 @@ class CandidateService {
                     throw new HttpError('Failed to upload candidate image', 500);
                 }
 
-                // 3. Simpan kandidat
-                const newCandidate = await this.candidateRepository.create({
+                // Simpan sebagai kandidat baru dengan array elections
+                candidate = await this.candidateRepository.create({
                     fullName,
                     motto,
                     image: uploadedImageUrl,
-                    election
+                    elections: [election] // Simpan dalam bentuk array
                 }, { session });
+            }
 
-                // 4. Update relasi di tabel election
-                await this.electionRepository.addCandidate(election, newCandidate._id, session);
-
-                return newCandidate;
-            });
-
-            // 5. Emit event (Hanya jika transaksi commit sukses)
-            eventEmitter.emitCandidateCreated({
-                candidateId: candidate._id,
-                name: candidate.fullName,
-                electionId: election
-            });
+            // 3. Update dokumen Election agar ID kandidat masuk ke list candidates election tersebut
+            await this.electionRepository.addCandidate(election, candidate._id, session);
 
             return candidate;
+        });
 
-        } catch (error) {
-            // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
-            if (uploadedImageUrl) {
-                safeCloudinaryDelete(uploadedImageUrl);
-            }
-            
-            console.error(`Candidate creation failed: ${error.message}`);
-            throw error;
+        // 4. Emit event sukses
+        eventEmitter.emitCandidateCreated({
+            candidateId: candidate._id,
+            name: candidate.fullName,
+            electionId: election
+        });
+
+        return candidate;
+
+    } catch (error) {
+        // RECOVERY: Jika gagal simpan ke DB padahal gambar sudah terlanjur upload
+        if (uploadedImageUrl) {
+            const publicId = extractPublicId(uploadedImageUrl);
+            safeCloudinaryDelete(publicId, 'candidates');
         }
+        
+        console.error(`Candidate creation/linking failed: ${error.message}`);
+        throw error;
     }
+};
     /**
      * Get all candidates with filtering and pagination
      * @param {object} filters - Query filters

@@ -29,6 +29,7 @@ const addCandidate = async (req, res, next) => {
             req.files.image
         );
 
+
         // Invalidate cache
         await cacheService.invalidateCandidate();
 

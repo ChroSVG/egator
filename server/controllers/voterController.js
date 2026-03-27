@@ -32,6 +32,7 @@ const registerVoter = async (req, res, next) => {
 const loginVoter = async (req, res, next) => {
     try {
         const { email, password } = req.body;
+    
 
         const result = await authService.login({ email, password });
 
