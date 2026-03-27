@@ -17,7 +17,11 @@ const {
     getCandidates,
     getSingleCandidate,
     voteForCandidate,
-    deleteCandidate
+    deleteCandidate,
+    addCandidateToElection,
+    removeCandidateFromElection,
+    moveCandidateToElection,
+    updateCandidate
 } = require('../controllers/candidateController');
 
 const { authMiddleware, adminOnly } = require('../middleware/authMiddleware');
@@ -68,7 +72,13 @@ router.get('/elections/:electionId/results', authMiddleware, getElectionResults)
 router.post('/candidates/', authMiddleware, adminLimiter, validateCreateCandidate, adminOnly, addCandidate);
 router.get('/candidates/', authMiddleware, getCandidates);
 router.get('/candidates/:id', authMiddleware, getSingleCandidate);
+router.patch('/candidates/:id', authMiddleware, adminLimiter, adminOnly, updateCandidate);
 router.delete('/candidates/:id', authMiddleware, adminLimiter, adminOnly, deleteCandidate);
 router.patch('/candidates/:id/vote', authMiddleware, voteLimiter, idempotencyGuard, validateVote, voteForCandidate);
+
+// Candidate-Election Management (Many-to-Many)
+router.post('/candidates/:id/elections/:electionId', authMiddleware, adminLimiter, adminOnly, addCandidateToElection);
+router.delete('/candidates/:id/elections/:electionId', authMiddleware, adminLimiter, adminOnly, removeCandidateFromElection);
+router.post('/candidates/:id/move', authMiddleware, adminLimiter, adminOnly, moveCandidateToElection);
 
 module.exports = router;

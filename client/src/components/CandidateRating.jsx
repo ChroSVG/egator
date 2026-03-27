@@ -1,6 +1,11 @@
 import React from "react"
 
-const CandidateRating = ({fullName, image, voteCount, totalVotes}) => {
+const CandidateRating = (props) => {
+    const { fullName, image, voteCount, totalVotes } = props;
+    
+    console.log('CandidateRating props:', props);
+    console.log('Candidate:', fullName, 'Votes:', voteCount, 'Total:', totalVotes);
+    
     return (
         <li className="result__candidate">
             <div className="result__candidate-image">

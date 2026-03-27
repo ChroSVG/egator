@@ -14,8 +14,11 @@ const ResultElection = ({ _id: id, thumbnail, title }) => {
 
     // Gunakan useCallback agar fungsi tidak dibuat ulang setiap render (opsional tapi bagus)
     const getCandidates = useCallback(async () => {
-        if (!id || !token) return;
-        
+        if (!id || !token) {
+            console.log('getCandidates skipped: id=', id, 'token=', !!token);
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -26,7 +29,11 @@ const ResultElection = ({ _id: id, thumbnail, title }) => {
                 }
             });
 
-            const candidates = response.data;
+            console.log('API Response:', response.data);
+            
+            const candidates = response.data?.data || [];
+            console.log('Candidates:', candidates);
+            
             setElectionCandidates(candidates);
 
 
@@ -43,6 +50,8 @@ const ResultElection = ({ _id: id, thumbnail, title }) => {
 
         } catch (error) {
             console.error('Error fetching candidates:', error);
+            console.error('Error status:', error?.status);
+            console.error('Error response:', error?.response?.data);
         }
 
         setIsLoading(false);

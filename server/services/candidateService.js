@@ -124,7 +124,7 @@ async createCandidate(data, file) {
         const { election, search, sort, page = 1, limit = 10 } = filters;
 
         let query = {};
-        if (election) query.election = election;
+        if (election) query.elections = election;  // Fixed: use 'elections' array
         if (search) {
             const candidates = await this.candidateRepository.searchByName(search);
             return {
@@ -135,7 +135,7 @@ async createCandidate(data, file) {
         }
 
         const options = {
-            populate: { path: 'election', select: 'title' },
+            populate: { path: 'elections', select: 'title' },  // Fixed: populate 'elections'
             sort: sort === 'votes' ? { voteCount: -1 } : { createdAt: -1 }
         };
 
@@ -171,13 +171,64 @@ async createCandidate(data, file) {
     }
 
     /**
+     * Update candidate
+     * @param {string} id - Candidate ID
+     * @param {object} data - Update data (fullName, motto, image)
+     * @param {object} file - New image file (optional)
+     * @returns {Promise<object>}
+     */
+    async updateCandidate(id, data, file = null) {
+        let candidate;
+        let oldImageUrl = null;
+
+        await withTransaction(async (session) => {
+            candidate = await this.candidateRepository.findById(id, { session });
+
+            if (!candidate) {
+                throw new HttpError('Candidate not found', 404);
+            }
+
+            // Store old image URL for deletion after successful transaction
+            oldImageUrl = candidate.image;
+
+            // Update fields (partial update supported)
+            if (data.fullName !== undefined) {
+                candidate.fullName = data.fullName;
+            }
+            if (data.motto !== undefined) {
+                candidate.motto = data.motto;
+            }
+
+            // Handle new image upload if provided
+            if (file) {
+                const uploadedImageUrl = await uploadToCloudinary(file, 'candidates');
+                candidate.image = uploadedImageUrl;
+
+                // Delete old image from Cloudinary (after transaction succeeds)
+                if (oldImageUrl) {
+                    const publicId = extractPublicId(oldImageUrl);
+                    if (publicId) {
+                        await deleteFromCloudinary(publicId);
+                    }
+                }
+            }
+
+            candidate.version = (candidate.version || 0) + 1;
+
+            await candidate.save({ session });
+        });
+
+        return candidate;
+    }
+
+    /**
      * Delete candidate
      * @param {string} id - Candidate ID
      * @returns {Promise<object>}
      */
     async deleteCandidate(id) {
     let candidate;
-    
+
     // 1. Jalankan transaksi Database saja
     await withTransaction(async (session) => {
         candidate = await this.candidateRepository.findById(id, { session });
@@ -186,8 +237,13 @@ async createCandidate(data, file) {
             throw new HttpError('Candidate not found', 404);
         }
 
-        // Hapus relasi dan data di DB
-        await this.electionRepository.removeCandidate(candidate.election, id, session);
+        // Hapus relasi dari semua election yang terkait
+        if (candidate.elections && candidate.elections.length > 0) {
+            for (const electionId of candidate.elections) {
+                await this.electionRepository.removeCandidate(electionId, id, session);
+            }
+        }
+        
         await this.candidateRepository.deleteById(id, { session });
     });
 
@@ -205,6 +261,146 @@ async createCandidate(data, file) {
 
     return candidate;
 };
+
+    /**
+     * Add candidate to another election
+     * @param {string} candidateId - Candidate ID
+     * @param {string} electionId - Election ID to add to
+     * @returns {Promise<object>}
+     */
+    async addCandidateToElection(candidateId, electionId) {
+        return await withTransaction(async (session) => {
+            // 1. Verify candidate exists
+            const candidate = await this.candidateRepository.findById(candidateId, { session });
+            if (!candidate) {
+                throw new HttpError('Candidate not found', 404);
+            }
+
+            // 2. Verify election exists
+            const election = await this.electionRepository.findById(electionId, { session });
+            if (!election) {
+                throw new HttpError('Election not found', 404);
+            }
+
+            // 3. Check if candidate already in this election
+            if (candidate.elections && candidate.elections.includes(electionId)) {
+                throw new HttpError('Candidate is already in this election', 400);
+            }
+
+            // 4. Add election to candidate's elections array
+            candidate.elections.push(electionId);
+            await candidate.save({ session });
+
+            // 5. Add candidate to election's candidates array
+            await this.electionRepository.addCandidate(electionId, candidateId, session);
+
+            // 6. Emit event
+            eventEmitter.emit('candidate:added-to-election', {
+                candidateId,
+                electionId
+            });
+
+            return candidate;
+        });
+    }
+
+    /**
+     * Remove candidate from an election
+     * @param {string} candidateId - Candidate ID
+     * @param {string} electionId - Election ID to remove from
+     * @returns {Promise<object>}
+     */
+    async removeCandidateFromElection(candidateId, electionId) {
+        return await withTransaction(async (session) => {
+            // 1. Verify candidate exists
+            const candidate = await this.candidateRepository.findById(candidateId, { session });
+            if (!candidate) {
+                throw new HttpError('Candidate not found', 404);
+            }
+
+            // 2. Check if candidate is in this election
+            if (!candidate.elections || !candidate.elections.includes(electionId)) {
+                throw new HttpError('Candidate is not in this election', 400);
+            }
+
+            // 3. Remove election from candidate's elections array
+            candidate.elections = candidate.elections.filter(
+                id => id.toString() !== electionId
+            );
+            await candidate.save({ session });
+
+            // 4. Remove candidate from election's candidates array
+            await this.electionRepository.removeCandidate(electionId, candidateId, session);
+
+            // 5. Emit event
+            eventEmitter.emit('candidate:removed-from-election', {
+                candidateId,
+                electionId
+            });
+
+            return candidate;
+        });
+    }
+
+    /**
+     * Move candidate from one election to another
+     * @param {string} candidateId - Candidate ID
+     * @param {string} fromElectionId - Source election ID
+     * @param {string} toElectionId - Destination election ID
+     * @returns {Promise<object>}
+     */
+    async moveCandidateToElection(candidateId, fromElectionId, toElectionId) {
+        return await withTransaction(async (session) => {
+            // 1. Verify candidate exists
+            const candidate = await this.candidateRepository.findById(candidateId, { session });
+            if (!candidate) {
+                throw new HttpError('Candidate not found', 404);
+            }
+
+            // 2. Verify both elections exist
+            const fromElection = await this.electionRepository.findById(fromElectionId, { session });
+            if (!fromElection) {
+                throw new HttpError('Source election not found', 404);
+            }
+
+            const toElection = await this.electionRepository.findById(toElectionId, { session });
+            if (!toElection) {
+                throw new HttpError('Destination election not found', 404);
+            }
+
+            // 3. Check if candidate is in source election
+            if (!candidate.elections || !candidate.elections.includes(fromElectionId)) {
+                throw new HttpError('Candidate is not in source election', 400);
+            }
+
+            // 4. Check if candidate is already in destination election
+            if (candidate.elections.includes(toElectionId)) {
+                throw new HttpError('Candidate is already in destination election', 400);
+            }
+
+            // 5. Remove from source election
+            candidate.elections = candidate.elections.filter(
+                id => id.toString() !== fromElectionId
+            );
+
+            // 6. Add to destination election
+            candidate.elections.push(toElectionId);
+            await candidate.save({ session });
+
+            // 7. Update elections
+            await this.electionRepository.removeCandidate(fromElectionId, candidateId, session);
+            await this.electionRepository.addCandidate(toElectionId, candidateId, session);
+
+            // 8. Emit events
+            eventEmitter.emit('candidate:moved-election', {
+                candidateId,
+                fromElectionId,
+                toElectionId
+            });
+
+            return candidate;
+        });
+    }
 
     /**
      * Upload image to Cloudinary

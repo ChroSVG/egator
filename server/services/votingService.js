@@ -32,7 +32,7 @@ class VotingService {
      * @returns {Promise<object>}
      */
     async castVote(voterId, candidateId, electionId,       options = {}) {
-        
+
         const { session } = options;
         // 1. Verify candidate exists and belongs to election
         const candidate = await this.candidateRepository.findById(candidateId, { session });
@@ -40,7 +40,8 @@ class VotingService {
             throw new HttpError('Candidate not found', 404);
         }
 
-        if (candidate.election.toString() !== electionId) {
+        // Check candidate belongs to this election (elections is now an array)
+        if (!candidate.elections || !candidate.elections.includes(electionId)) {
             throw new HttpError('Candidate does not belong to the specified election', 400);
         }
 

@@ -91,22 +91,23 @@ class VoteCommand {
         }
 
         try {
-            // Remove vote record
+            // Remove vote record (no session needed for deletion in this case)
             await this.voteRecordRepository.deleteVote(
                 this.voterId,
-                this.electionId,
-                session 
+                this.electionId
             );
 
             // Decrement candidate vote count
-            await this.candidateRepository.decrementVoteCount(this.candidateId, 1, session );
+            await this.candidateRepository.decrementVoteCount(this.candidateId, 1);
 
             // Update voter's voted elections
-            const voter = await this.voterRepository.findById(this.voterId, {session});
-            voter.votedElections = voter.votedElections.filter(
-                id => id.toString() !== this.electionId
-            );
-            await voter.save({ session });
+            const voter = await this.voterRepository.findById(this.voterId);
+            if (voter && voter.votedElections) {
+                voter.votedElections = voter.votedElections.filter(
+                    id => id.toString() !== this.electionId
+                );
+                await voter.save();
+            }
 
             this.executed = false;
 
@@ -160,8 +161,8 @@ class VoteCommand {
             errors.push('Candidate not found');
         }
 
-        // Check candidate belongs to election
-        if (candidate && candidate.election.toString() !== this.electionId) {
+        // Check candidate belongs to election (elections is now an array)
+        if (candidate && !candidate.elections.includes(this.electionId)) {
             errors.push('Candidate does not belong to specified election');
         }
 

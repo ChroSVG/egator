@@ -229,15 +229,21 @@ async updateElection(id, data, file = null) {
      * @returns {Promise<Array>}
      */
     async getElectionCandidates(electionId) {
-        const election = await this.electionRepository.findById(electionId);
+        console.log('[getElectionCandidates] Election ID:', electionId);
         
+        const election = await this.electionRepository.findById(electionId);
+        console.log('[getElectionCandidates] Election:', election);
+
         if (!election) {
             throw new HttpError('Election not found', 404);
         }
 
-        return await this.candidateRepository.findByElection(electionId, {
-            populate: { path: 'election', select: 'title' }
+        const candidates = await this.candidateRepository.findByElection(electionId, {
+            populate: { path: 'elections', select: 'title' }
         });
+        console.log('[getElectionCandidates] Candidates from DB:', candidates);
+        
+        return candidates;
     }
 
     /**

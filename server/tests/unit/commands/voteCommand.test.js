@@ -38,8 +38,11 @@ describe('VoteCommand', () => {
 
             const result = await voteCommand.execute();
 
-            expect(VotingService.prototype.castVote)
-                .toHaveBeenCalledWith('voter-id', 'candidate-id', 'election-id');
+            expect(VotingService.prototype.castVote).toHaveBeenCalled();
+            const callArgs = VotingService.prototype.castVote.mock.calls[0];
+            expect(callArgs[0]).toBe('voter-id');
+            expect(callArgs[1]).toBe('candidate-id');
+            expect(callArgs[2]).toBe('election-id');
             expect(result).toHaveProperty('message', 'Vote registered successfully!');
             expect(voteCommand.executed).toBe(true);
         });
@@ -63,7 +66,7 @@ describe('VoteCommand', () => {
     describe('undo', () => {
         it('should undo vote successfully', async () => {
             voteCommand.executed = true;
-            
+
             const mockVoterWithSave = {
                 ...mockVoter,
                 votedElections: ['election-id'],
@@ -76,8 +79,15 @@ describe('VoteCommand', () => {
 
             const result = await voteCommand.undo();
 
-            expect(VoteRecordRepository.prototype.deleteVote).toHaveBeenCalled();
-            expect(CandidateRepository.prototype.decrementVoteCount).toHaveBeenCalled();
+            expect(VoteRecordRepository.prototype.deleteVote).toHaveBeenCalledWith(
+                'voter-id',
+                'election-id'
+            );
+            expect(CandidateRepository.prototype.decrementVoteCount).toHaveBeenCalledWith(
+                'candidate-id',
+                1
+            );
+            expect(VoterRepository.prototype.findById).toHaveBeenCalledWith('voter-id');
             expect(result).toHaveProperty('message', 'Vote successfully undone');
             expect(voteCommand.executed).toBe(false);
         });

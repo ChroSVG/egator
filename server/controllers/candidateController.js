@@ -152,6 +152,37 @@ const getVoteHistory = async (req, res) => {
 
 
 /**
+ * Update Candidate
+ * PATCH /api/candidates/:id
+ */
+const updateCandidate = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { fullName, motto } = req.body;
+
+        // Build update data (partial update supported)
+        const updateData = {};
+        if (fullName !== undefined) updateData.fullName = fullName;
+        if (motto !== undefined) updateData.motto = motto;
+
+        // Handle optional image upload
+        const file = req.files?.image || null;
+
+        const candidate = await candidateService.updateCandidate(id, updateData, file);
+
+        // Invalidate cache
+        await cacheService.invalidateCandidate(id);
+
+        return res.json({
+            message: 'Candidate updated successfully!',
+            data: candidate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Delete Candidate
  * DELETE /api/candidates/:id
  */
@@ -177,6 +208,102 @@ const deleteCandidate = async (req, res, next) => {
     }
 };
 
+/**
+ * Add Candidate to Election
+ * POST /api/candidates/:id/elections/:electionId
+ * Link existing candidate to another election
+ */
+const addCandidateToElection = async (req, res, next) => {
+    try {
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('Unauthorized', 403);
+        // }
+
+        const { id: candidateId } = req.params;
+        const { electionId } = req.params;
+
+        const candidate = await candidateService.addCandidateToElection(candidateId, electionId);
+
+        // Invalidate cache
+        await cacheService.invalidateCandidate(candidateId);
+        await cacheService.invalidateElection(electionId);
+
+        return res.json({
+            message: 'Candidate added to election successfully!',
+            data: candidate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Remove Candidate from Election
+ * DELETE /api/candidates/:id/elections/:electionId
+ * Unlink candidate from election (without deleting candidate)
+ */
+const removeCandidateFromElection = async (req, res, next) => {
+    try {
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('Unauthorized', 403);
+        // }
+
+        const { id: candidateId } = req.params;
+        const { electionId } = req.params;
+
+        const candidate = await candidateService.removeCandidateFromElection(candidateId, electionId);
+
+        // Invalidate cache
+        await cacheService.invalidateCandidate(candidateId);
+        await cacheService.invalidateElection(electionId);
+
+        return res.json({
+            message: 'Candidate removed from election successfully!',
+            data: candidate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Move Candidate to Different Election
+ * POST /api/candidates/:id/move
+ * Move candidate from one election to another
+ */
+const moveCandidateToElection = async (req, res, next) => {
+    try {
+        // if (!req.user.isAdmin) {
+        //     throw new HttpError('Unauthorized', 403);
+        // }
+
+        const { id: candidateId } = req.params;
+        const { fromElectionId, toElectionId } = req.body;
+
+        if (!fromElectionId || !toElectionId) {
+            throw new HttpError('Please provide fromElectionId and toElectionId', 400);
+        }
+
+        const candidate = await candidateService.moveCandidateToElection(
+            candidateId,
+            fromElectionId,
+            toElectionId
+        );
+
+        // Invalidate cache
+        await cacheService.invalidateCandidate(candidateId);
+        await cacheService.invalidateElection(fromElectionId);
+        await cacheService.invalidateElection(toElectionId);
+
+        return res.json({
+            message: 'Candidate moved successfully!',
+            data: candidate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     addCandidate,
     getCandidates,
@@ -184,4 +311,8 @@ module.exports = {
     voteForCandidate,
     deleteCandidate,
     getVoteHistory,
+    addCandidateToElection,
+    removeCandidateFromElection,
+    moveCandidateToElection,
+    updateCandidate
 };

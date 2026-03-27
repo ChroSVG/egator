@@ -24,16 +24,16 @@ const candidateSchema = new Schema({
         type: Number,
         default: 0
     },
-    // candidateModel.js (Jika ingin bisa banyak election)
+    // Support multiple elections
     elections: [{
         type: Types.ObjectId,
         ref: 'Election'
     }],
-    
+
 }, { timestamps: true });
 
-// Indexes for better query performance
-candidateSchema.index({ election: 1, voteCount: -1 });
-candidateSchema.index({ election: 1, createdAt: -1 });
+// Indexes for better query performance - FIXED to use 'elections'
+candidateSchema.index({ elections: 1, voteCount: -1 });
+candidateSchema.index({ elections: 1, createdAt: -1 });
 
 module.exports = model('Candidate', candidateSchema);

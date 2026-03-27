@@ -9,7 +9,10 @@ const Result = () => {
   const token = useSelector(state => state?.vote?.currentVoter?.token);
 
   const fetchElections = async () => {
-      if (!token) return; // Jangan panggil API jika tidak ada token
+      if (!token) {
+        console.log('fetchElections skipped: token not available');
+        return;
+      }
 
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections`, {
@@ -18,11 +21,17 @@ const Result = () => {
             Authorization: `Bearer ${token}`
           }
         });
+        console.log('API Response:', response.data);
 
         // Axios sudah mem-parse JSON secara otomatis, langsung ambil .data
-        setElections(response.data.elections); 
+        const electionsData = response.data.elections || [];
+        console.log('Elections data:', electionsData);
+        
+        setElections(electionsData);
       } catch (error) {
         console.error('Error fetching elections:', error);
+        console.error('Error status:', error?.status);
+        console.error('Error response:', error?.response?.data);
         // Tips: Jika error 401 (Unauthorized), kamu bisa arahkan user ke login
         }
       };
@@ -40,8 +49,12 @@ const Result = () => {
   return (
     <section className="results">
       <div className="container results__container">
+        {console.log('Rendering elections:', elections)}
         {
-          elections.map(election => <ResultElection key={election._id} {...election}/>)
+          elections.map(election => {
+            console.log('Rendering election:', election);
+            return <ResultElection key={election._id} {...election}/>
+          })
         }
       </div>
     </section>

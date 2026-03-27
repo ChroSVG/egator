@@ -5,6 +5,7 @@ const Election = require('../../models/electionModel');
 const Candidate = require('../../models/candidateModel');
 const VoteRecord = require('../../models/voteRecordModel');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 describe('Voting API Tests', () => {
     let voterToken;
@@ -12,12 +13,13 @@ describe('Voting API Tests', () => {
     let election;
     let candidate1;
     let candidate2;
+    let testVoter;
 
-    // Setup test data
-    beforeAll(async () => {
+    // Setup test data untuk setiap test
+    beforeEach(async () => {
         // Create election
         election = new Election({
-            title: 'Test Election',
+            title: `Test Election ${Date.now()}`,
             description: 'Test voting',
             thumbnail: 'https://res.cloudinary.com/test/image/upload/test.jpg'
         });
@@ -48,22 +50,38 @@ describe('Voting API Tests', () => {
 
         // Create voter
         const hashedPassword = await bcrypt.hash('Password@123', 10);
-        const voter = new Voter({
+        testVoter = new Voter({
             fullName: 'Test Voter',
             email: `voter${Date.now()}@example.com`,
             password: hashedPassword,
             isAdmin: false,
             votedElections: []
         });
-        await voter.save();
-        voterId = voter._id;
+        await testVoter.save();
+        voterId = testVoter._id;
 
         // Login voter
         const loginRes = await request(app)
             .post('/api/voters/login')
-            .send({ email: voter.email, password: 'Password@123' });
-        
+            .send({ email: testVoter.email, password: 'Password@123' });
+
         voterToken = loginRes.body.token;
+    });
+
+    // Cleanup setelah setiap test
+    afterEach(async () => {
+        // Cleanup vote records
+        await VoteRecord.deleteMany({ voter: voterId });
+        
+        // Cleanup candidates
+        if (candidate1) await Candidate.findByIdAndDelete(candidate1._id);
+        if (candidate2) await Candidate.findByIdAndDelete(candidate2._id);
+        
+        // Cleanup election
+        if (election) await Election.findByIdAndDelete(election._id);
+        
+        // Cleanup voter
+        if (testVoter) await Voter.findByIdAndDelete(testVoter._id);
     });
 
     describe('PATCH /api/candidates/:id/vote', () => {
@@ -240,6 +258,14 @@ describe('Voting API Tests', () => {
             }
         });
     });
+});
+
+// Cleanup global setelah semua test
+afterAll(async () => {
+    await Election.deleteMany({ title: { $regex: /Test Election|Concurrent Test/ } });
+    await Candidate.deleteMany({ fullName: { $regex: /Candidate One|Candidate Two|Concurrent Candidate|Candidate Three/ } });
+    await Voter.deleteMany({ email: { $regex: /voter\d*@example\.com|concurrent.*@example\.com/ } });
+    await VoteRecord.deleteMany({});
 });
 
 // Helper for concurrent testing

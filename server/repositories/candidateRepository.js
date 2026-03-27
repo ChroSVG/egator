@@ -20,10 +20,10 @@ class CandidateRepository extends BaseRepository {
      */
     async findByElection(electionId, options = {}) {
         return await this.findAll(
-            { election: electionId },
-            { 
+            { elections: electionId },  // Fixed: use 'elections' array
+            {
                 sort: { voteCount: -1 },
-                ...options 
+                ...options
             }
         );
     }
@@ -34,7 +34,7 @@ class CandidateRepository extends BaseRepository {
      * @returns {Promise<object|null>}
      */
     async findByIdWithElection(id) {
-        return await this.findById(id, { populate: { path: 'election', select: 'title' } });
+        return await this.findById(id, { populate: { path: 'elections', select: 'title' } });  // Fixed: populate 'elections'
     }
 
     /**
@@ -58,10 +58,10 @@ class CandidateRepository extends BaseRepository {
      */
     async getTopCandidates(electionId, limit = 10) {
         return await this.findAll(
-            { election: electionId },
-            { 
+            { elections: electionId },  // Fixed: use 'elections' array
+            {
                 sort: { voteCount: -1 },
-                limit 
+                limit
             }
         );
     }
@@ -122,17 +122,17 @@ class CandidateRepository extends BaseRepository {
      * @returns {Promise<object>}
      */
     async getVoteStatistics(electionId) {
-        const candidates = await this.findAll({ election: electionId });
-        
+        const candidates = await this.findAll({ elections: electionId });  // Fixed: use 'elections' array
+
         const totalVotes = candidates.reduce((sum, c) => sum + c.voteCount, 0);
         const totalCandidates = candidates.length;
-        
+
         return {
             electionId,
             totalVotes,
             totalCandidates,
-            averageVotesPerCandidate: totalCandidates > 0 
-                ? (totalVotes / totalCandidates).toFixed(2) 
+            averageVotesPerCandidate: totalCandidates > 0
+                ? (totalVotes / totalCandidates).toFixed(2)
                 : 0,
             leadingCandidate: candidates.length > 0 ? {
                 id: candidates[0]._id,
@@ -149,7 +149,7 @@ class CandidateRepository extends BaseRepository {
      * @returns {Promise<object>}
      */
     async deleteByElection(electionId, options = {}) {
-        return await this.deleteMany({ election: electionId }, options);
+        return await this.deleteMany({ elections: electionId }, options);  // Fixed: use 'elections' array
     }
 }
 

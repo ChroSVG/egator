@@ -11,8 +11,10 @@ describe('Election API Tests', () => {
     let voterToken;
     let testElection;
     let testCandidate;
+    let testAdmin;
+    let testVoter;
 
-    // Helper function to create test data
+    // Helper function to create test election
     const createTestElection = async () => {
         testElection = new Election({
             title: 'Test Election',
@@ -31,51 +33,75 @@ describe('Election API Tests', () => {
             election: electionId
         });
         await testCandidate.save();
-        
+
         // Add candidate to election
         testElection.candidates.push(testCandidate._id);
         await testElection.save();
-        
+
         return testCandidate;
     };
 
+    // Setup sebelum semua test
     beforeAll(async () => {
         // Create admin user
         const hashedPassword = await bcrypt.hash('Admin@123456', 10);
-        const admin = new Voter({
+        testAdmin = new Voter({
             fullName: 'Admin User',
             email: `admin${Date.now()}@example.com`,
             password: hashedPassword,
             isAdmin: true
         });
-        await admin.save();
+        await testAdmin.save();
 
         // Login as admin
         const loginRes = await request(app)
             .post('/api/voters/login')
-            .send({ email: admin.email, password: 'Admin@123456' });
-        
+            .send({ email: testAdmin.email, password: 'Admin@123456' });
+
         adminToken = loginRes.body.token;
 
         // Create regular voter
-        const voter = new Voter({
+        testVoter = new Voter({
             fullName: 'Regular Voter',
             email: `voter${Date.now()}@example.com`,
             password: hashedPassword,
             isAdmin: false
         });
-        await voter.save();
+        await testVoter.save();
 
         // Login as voter
         const voterLoginRes = await request(app)
             .post('/api/voters/login')
-            .send({ email: voter.email, password: 'Admin@123456' });
-        
-        voterToken = voterLoginRes.body.token;
+            .send({ email: testVoter.email, password: 'Admin@123456' });
 
-        // Create test election
+        voterToken = voterLoginRes.body.token;
+    });
+
+    // Setup sebelum setiap test - isolation
+    beforeEach(async () => {
         await createTestElection();
         await createTestCandidate(testElection._id);
+    });
+
+    // Cleanup setelah setiap test
+    afterEach(async () => {
+        if (testElection) {
+            await Election.findByIdAndDelete(testElection._id);
+        }
+        if (testCandidate) {
+            await Candidate.findByIdAndDelete(testCandidate._id);
+        }
+    });
+
+    // Cleanup setelah semua test selesai
+    afterAll(async () => {
+        // Cleanup users
+        if (testAdmin) await Voter.findByIdAndDelete(testAdmin._id);
+        if (testVoter) await Voter.findByIdAndDelete(testVoter._id);
+        
+        // Cleanup any remaining test data
+        await Election.deleteMany({ title: { $regex: /Test Election|New Election|Updated Title/ } });
+        await Candidate.deleteMany({ fullName: { $regex: /Test Candidate|New Candidate/ } });
     });
 
     describe('GET /api/elections', () => {

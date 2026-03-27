@@ -163,8 +163,10 @@ const deleteElection = async (req, res, next) => {
 const getCandidatesOfElection = async (req, res, next) => {
     try {
         const { id } = req.params;
+        console.log('[getCandidatesOfElection] Election ID:', id);
 
         const candidates = await electionService.getElectionCandidates(id);
+        console.log('[getCandidatesOfElection] Candidates:', candidates);
 
         return res.json({
             message: 'Election candidates retrieved successfully!',
@@ -172,6 +174,7 @@ const getCandidatesOfElection = async (req, res, next) => {
             data: candidates
         });
     } catch (error) {
+        console.error('[getCandidatesOfElection] Error:', error);
         next(error);
     }
 };
