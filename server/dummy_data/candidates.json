@@ -1,0 +1,20 @@
+[
+  {
+    "fullName": "Budi Santoso",
+    "motto": "Mewujudkan organisasi yang transparan dan akuntabel.",
+    "image": "https://i.pravatar.cc/300?u=budi",
+    "voteCount": 150
+  },
+  {
+    "fullName": "Siti Aminah",
+    "motto": "Inovasi tanpa henti untuk kemajuan bersama.",
+    "image": "https://i.pravatar.cc/300?u=siti",
+    "voteCount": 235
+  },
+  {
+    "fullName": "Andi Wijaya",
+    "motto": "Kerja nyata, bukan sekadar kata-kata.",
+    "image": "https://i.pravatar.cc/300?u=andi",
+    "voteCount": 89
+  }
+]

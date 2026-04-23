@@ -1,19 +1,40 @@
-import React, {useState} from 'react'
-import { elections as dummyElections } from "../data"
+import React, {useState, useEffect} from 'react'
 import Election from "../components/Election"
 import AddElectionModal from '../components/AddElectionModal'
 import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
 import UpdateElectionModal from '../components/UpdateElectionModal'
+import axios from 'axios'
+import Loader from '../components/Loader'
+
+
 
 const Elections = () => {
-  const [elections, setElections] = useState(dummyElections)
+  const [elections, setElections] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const electionModalShowing = useSelector(state => state.ui.electionModalShowing)
 
   const updateElectionModalShowing = useSelector(state => state.ui.updateElectionModalShowing)
 
+  const currentUser = useSelector(state => state.vote.currentVoter)
+  const token = currentUser?.token
+  const isAdmin = currentUser?.voter?.isAdmin
   const dispatch = useDispatch()
+  
+  const fetchElections = async() => {
+    try{
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections`, {withCredentials: true, headers: {Authorization: `Bearer ${token}`}})
+      setElections(response.data.elections)
+    } catch(error){
+      console.error(error)
+    }
+    setIsLoading(false)
+  }
+  
+  useEffect(() => {
+    fetchElections()
+  }, [])
 
   // open add election modal
   const openAddElectionModal = () => {
@@ -27,15 +48,15 @@ const Elections = () => {
       <div className='container elections__container'>
         <header className="elections__header">
           <h1>Ongoing Elections</h1>
-          <button className="btn primary" onClick={openAddElectionModal}>
+          {isAdmin && <button className="btn primary" onClick={openAddElectionModal}>
             Create New Election
-          </button>
+          </button>}
         </header>
-        <menu className='election__menu'>
+        {isLoading ? <Loader/> : <menu className='election__menu'>
           {
-            elections.map(election => <Election key={election.id} {...election}/>)
+            elections.map(election => <Election key={election._id} {...election}/>)
           }
-        </menu>
+        </menu>}
       </div>
   </section>
   

@@ -104,6 +104,8 @@ const getSingleCandidate = async (req, res, next) => {
     }
 };
 
+const voterRepo = new (require('../repositories/voterRepository'))();
+
 /**
  * Vote for Candidate
  * PATCH /api/candidates/:id/vote
@@ -131,13 +133,18 @@ const voteForCandidate = async (req, res, next) => {
 
         // Execute command
         await voteHandler.executeCommand(voteCommand);
-        // Invalidate cache for this election
+        
+        // Invalidate cache
         await cacheService.invalidateElection(selectedElectionId);
         await cacheService.invalidateCandidate(candidateId);
 
+        // Fetch updated voter data efficiently
+        const updatedVoter = await voterRepo.findByIdSelective(voterId);
+
         return res.json({
             message: 'Vote registered successfully!',
-            candidate: candidateId
+            candidate: candidateId,
+            voter: updatedVoter
         });
     } catch (error) {
         next(error);

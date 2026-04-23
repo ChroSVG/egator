@@ -1,0 +1,4 @@
+fullName,email,password,isAdmin
+"User Tester","user@tester.com","password123",false
+"Admin Egator","admin@egator.com","adminpassword",true
+"Voter 001","voter001@email.com","voterpassword",false

@@ -2,17 +2,16 @@ import React from 'react'
 import { Link } from 'react-router-dom'
  import { useDispatch } from 'react-redux'
  import { UiActions } from '../store/ui-slice'
+import { voteActions } from '../store/vote-slice' // Import ini
 
-
-const Election = ({id, title, description, thumbnail}) => {
-    
-    
+const Election = ({_id:id, title, description, thumbnail}) => {
     
     const dispatch = useDispatch()
 
-    //   open update election modal
+    // open update election modal
     const openUpdateModal = () => {
-        dispatch(UiActions.openUpdateElectionModal(id, title, description, thumbnail))
+        dispatch(voteActions.changeIdOfElectionToUpdate(id)) // ISI ID DISINI
+        dispatch(UiActions.openUpdateElectionModal())
     }
   
   return (

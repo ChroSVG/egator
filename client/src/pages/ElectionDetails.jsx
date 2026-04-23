@@ -1,31 +1,32 @@
-import React from 'react'
-import {elections, candidates, voters} from '../data'
+import React,{useEffect} from 'react'
 import { useParams } from 'react-router-dom'
 import ElectionCandidate from '../components/ElectionCandidate'
 import {IoAddOutline} from 'react-icons/io5'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
-import { useSelector } from 'react-redux';
 import AddCandidateModal from '../components/AddCandidateModal'
-
-const ElectionDetails = () => {
+import { voteActions } from '../store/vote-slice'
+const ElectionDetails = (props) => {
 
   
   const {id} = useParams()
   const dispatch = useDispatch()
-  const currentElection = elections.find(election => election.id == id)
-
-  const electionCandidates = candidates.filter(candidate => candidate.election == id )
-
-
+  console.log("prop",props)
   const addCandidateModalShowing =  useSelector(state => state.ui.addCandidateModalShowing)
-
+  const currentElection = useSelector(state => state.vote.selectedElection)
 
 
 
   const openModal = () => {
     dispatch(UiActions.openAddCandidateModal())
+    dispatch(voteActions.changeIdOfElectionToUpdate(id))
   }
+
+  useEffect(() => {
+    if (id) {
+        dispatch(voteActions.changeIdOfElectionToUpdate(id));
+    }
+}, [id, dispatch]);
 
 
   return (

@@ -1,0 +1,20 @@
+[
+  {
+    "fullName": "User Tester",
+    "email": "user@tester.com",
+    "password": "password123",
+    "isAdmin": false
+  },
+  {
+    "fullName": "Admin Egator",
+    "email": "admin@egator.com",
+    "password": "adminpassword",
+    "isAdmin": true
+  },
+  {
+    "fullName": "Voter 001",
+    "email": "voter001@email.com",
+    "password": "voterpassword",
+    "isAdmin": false
+  }
+]

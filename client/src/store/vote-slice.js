@@ -27,6 +27,9 @@ const voteSlice = createSlice({
         changeAddCandidateElectionId(state, action) {
             state.addCandidateElectionId = action.payload
         },
+        changeIdOfElectionToUpdate(state, action) {
+            state.idOfElectionToUpdate = action.payload
+        },
         // AKSI TAMBAHAN: Logout
         logoutVoter(state) {
         state.currentVoter = null;
