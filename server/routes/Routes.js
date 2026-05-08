@@ -70,6 +70,7 @@ router.get('/elections/:electionId/results', authMiddleware, getElectionResults)
 
 // ============ Candidate Routes ============
 router.post('/candidates/', authMiddleware, adminLimiter, validateCreateCandidate, adminOnly, addCandidate);
+router.post('/candidates/elections/:id', authMiddleware, adminLimiter, validateCreateCandidate, adminOnly, addCandidateToElection);
 router.get('/candidates/', authMiddleware, getCandidates);
 router.get('/candidates/:id', authMiddleware, getSingleCandidate);
 router.patch('/candidates/:id', authMiddleware, adminLimiter, adminOnly, updateCandidate);

@@ -3,11 +3,14 @@ import { HiOutlineBars3 } from 'react-icons/hi2'
 import { IoIosMoon, IoMdSunny } from 'react-icons/io'
 import { AiOutlineClose } from 'react-icons/ai'
 import { Link, NavLink } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 
 const Navbar = () => {
   const [isShowNav, setIsShowNav] = useState(window.innerWidth < 600 ? false:true)
   const [darkTheme, setDarkTheme] = useState(localStorage.getItem('voting-app-theme') || '')
 
+
+  const token = useSelector(state => state?.vote?.currentVoter?.token)
   // function to close nav menu on small screen when menu is clicked
   const handleCloseMenu = () => {
       if(window.innerWidth < 600) {
@@ -37,7 +40,7 @@ const Navbar = () => {
       <div className="container nav__container">
         <Link to="/" className="nav__logo">EGATOR</Link>
         <div>
-{         isShowNav && <menu>
+{        token && isShowNav && <menu>
             <NavLink to="/elections" onClick={handleCloseMenu}>Elections</NavLink>
             
             <NavLink to="/results" onClick={handleCloseMenu}>Result</NavLink>

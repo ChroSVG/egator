@@ -149,9 +149,14 @@ button {
     width: 100%;
 }
 
+.btn.danger:hover {
+    background:red;
+    color: white;
+}
+
 .btn:hover {
     background: var(--color-gray-900);
-    color: var(--color-gray-0);
+    color: white;
 }
 
 /*  ERROR PAGE */
@@ -682,7 +687,7 @@ nav {
 }
 
 .add__candidate-btn {
-    background: var(--color-gray-900);
+    background: var(--color-gray);
     border: 2px solid var(--color-primary);
     border-radius: var(--radius-4);
     font-size: 5rem;
@@ -693,6 +698,13 @@ nav {
     place-items: center;
     min-height: 15rem;
 }
+
+.add__candidate-btn:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: scale(1.02);
+}
+
 
 .voters {
     margin: 6rem 0 3rem;

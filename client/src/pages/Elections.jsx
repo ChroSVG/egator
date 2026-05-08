@@ -6,7 +6,7 @@ import { UiActions } from '../store/ui-slice'
 import UpdateElectionModal from '../components/UpdateElectionModal'
 import axios from 'axios'
 import Loader from '../components/Loader'
-
+import { useNavigate } from 'react-router-dom'
 
 
 const Elections = () => {
@@ -19,6 +19,17 @@ const Elections = () => {
 
   const currentUser = useSelector(state => state.vote.currentVoter)
   const token = currentUser?.token
+  const Navigate = useNavigate()
+
+  // access control
+    useEffect(()=>{
+      if (!token) {
+      Navigate('/login');
+    }
+    },[token])
+
+
+
   const isAdmin = currentUser?.voter?.isAdmin
   const dispatch = useDispatch()
   

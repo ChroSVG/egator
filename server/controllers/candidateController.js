@@ -3,11 +3,11 @@ const VotingService = require('../services/votingService');
 const {VoteCommand, CommandHandler} = require('../commands/voteCommand');
 const cacheService = require('../utils/cacheService');
 const HttpError = require('../models/errorModel');
-
+const ElectionService = require('../services/electionService');
 const candidateService = new CandidateService();
 const votingService = new VotingService();
 const voteHandler = new CommandHandler();
-
+const electionService = new ElectionService();
 /**
  * Add Candidate
  * POST /api/candidates
@@ -222,22 +222,53 @@ const deleteCandidate = async (req, res, next) => {
  */
 const addCandidateToElection = async (req, res, next) => {
     try {
-        // if (!req.user.isAdmin) {
-        //     throw new HttpError('Unauthorized', 403);
-        // }
+        const { id, electionId: paramElectionId } = req.params;
+        const { fullName, motto } = req.body;
+        
+        // Determine IDs based on route parameters
+        // Case 1: /candidates/elections/:id -> id is electionId
+        // Case 2: /candidates/:id/elections/:electionId -> id is candidateId, paramElectionId is electionId
+        const effectiveElectionId = paramElectionId || id;
+        let effectiveCandidateId = paramElectionId ? id : null;
 
-        const { id: candidateId } = req.params;
-        const { electionId } = req.params;
+        if (!effectiveElectionId) {
+            throw new HttpError('Missing election ID', 400);
+        }
 
-        const candidate = await candidateService.addCandidateToElection(candidateId, electionId);
+        // Verify if election exists
+        const election = await electionService.getElectionById(effectiveElectionId);
+        if (!election) {
+            throw new HttpError('Election not found', 404);
+        }
+
+        let result;
+        if (fullName) {
+            // CASE A: Create NEW candidate and add to election
+            if (!req.files || !req.files.image) {
+                throw new HttpError('Please provide an image for the candidate', 400);
+            }
+
+            // createCandidate service already links candidate to the election
+            result = await candidateService.createCandidate(
+                { fullName, motto, election: effectiveElectionId },
+                req.files.image
+            );
+            effectiveCandidateId = result._id;
+        } else {
+            // CASE B: Add EXISTING candidate to election
+            if (!effectiveCandidateId) {
+                throw new HttpError('Missing candidate ID for linking existing candidate', 400);
+            }
+            result = await candidateService.addCandidateToElection(effectiveCandidateId, effectiveElectionId);
+        }
 
         // Invalidate cache
-        await cacheService.invalidateCandidate(candidateId);
-        await cacheService.invalidateElection(electionId);
+        await cacheService.invalidateCandidate(effectiveCandidateId);
+        await cacheService.invalidateElection(effectiveElectionId);
 
         return res.json({
-            message: 'Candidate added to election successfully!',
-            data: candidate
+            message: fullName ? 'Candidate created and added to election successfully!' : 'Candidate added to election successfully!',
+            data: result
         });
     } catch (error) {
         next(error);
