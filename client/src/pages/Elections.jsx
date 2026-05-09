@@ -20,14 +20,6 @@ const Elections = () => {
 
   const currentUser = useSelector(state => state.vote.currentVoter)
   const token = currentUser?.token
-  const Navigate = useNavigate()
-
-  // access control
-    useEffect(()=>{
-      if (!token) {
-      Navigate('/login');
-    }
-    },[token])
 
 
 

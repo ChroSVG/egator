@@ -10,18 +10,8 @@ import { useNavigate } from 'react-router-dom'
 const Candidates = () => {
   const currentVoter = useSelector(state => state?.vote?.currentVoter);
   const token = currentVoter?.token;
-  const Navigate = useNavigate()
-
-
-  // access control
-  useEffect(()=>{
-    if (!token) {
-    Navigate('/login');
-  }
-  },[token])
-
-
-
+  
+  
   const { id: selectedElection } = useParams();
   const [candidates, setCandidates] = useState([]);
   const [election, setElection] = useState(null);

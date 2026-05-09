@@ -15,7 +15,7 @@ This file tracks the progress of fixing issues and improving the codebase.
 - [x] 1. Move duplicate `uploadImage` code to `server/utils/uploadHelper.js`
 - [x] 2. Fix inconsistent localStorage keys (`"currentUser"`)
 - [x] 3. Remove dead `voteQueue.js` middleware
-- [ ] 4. Replace hard page reloads with React state/Redux updates
+- [x] 4. Replace hard page reloads with React state/Redux updates
 - [ ] 5. Create `ProtectedRoute` wrapper for auth
 - [ ] 6. Remove duplicate `getElectionResults` from services
 - [ ] 7. Clean up unused `VoteCommand.validate()`

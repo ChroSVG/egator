@@ -9,6 +9,7 @@ import ElectionDetails from "./pages/ElectionDetails"
 import Candidates from "./pages/Candidates"
 import Elections from "./pages/Elections"
 import Result from "./pages/Result"
+import ProtectedRoute from "./components/ProtectedRoute"
 const router = createBrowserRouter([
   {
     path: "/",
@@ -29,19 +30,19 @@ const router = createBrowserRouter([
       },
       {
         path: "results",
-        element: <Result />,
+        element: <ProtectedRoute><Result /></ProtectedRoute>,
       },
       {
         path: "elections",
-        element: <Elections />,
+        element: <ProtectedRoute><Elections /></ProtectedRoute>,
       },
       {
         path: "elections/:id",
-        element: <ElectionDetails />,
+        element: <ProtectedRoute><ElectionDetails /></ProtectedRoute>,
       },
       {
         path: "elections/:id/candidates",
-        element: <Candidates  />,
+        element: <ProtectedRoute><Candidates  /></ProtectedRoute>,
       },
       {
         path: "congrats",

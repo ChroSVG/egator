@@ -21,20 +21,9 @@ const ElectionDetails = (props) => {
     const [voters, setVoters] = useState([])
 
     const addCandidateModalShowing = useSelector(state => state.ui.addCandidateModalShowing)
-    const token = useSelector(state => state.vote.currentVoter?.token)
-    const refreshTrigger = useSelector(state => state.vote.refreshTrigger)
-    const Navigate = useNavigate()
-
-      // access control
-      useEffect(()=>{
-        if (!token) {
-        Navigate('/login');
-      }
-      },[token])
-    
-
-
     const currentVoter = useSelector(state => state.vote.currentVoter)
+    const token = currentVoter?.token
+    const refreshTrigger = useSelector(state => state.vote.refreshTrigger)
     const isAdmin = currentVoter?.voter?.isAdmin
 
     const openModal = () => {
