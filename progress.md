@@ -24,8 +24,8 @@ This file tracks the progress of fixing issues and improving the codebase.
 - [x] 10. Organize loose test scripts to `server/tests/scripts/`
 - [x] 11. Unify error message language to English
 - [x] 12. Handle `version` field properly or remove it
-- [ ] 13. Create a simple client API service (`axiosConfig.js`)
-- [ ] 14. Apply Open/Closed Principle to services (Dependency Injection)
+- [x] 13. Create a simple client API service (`axiosConfig.js`)
+- [x] 14. Apply Open/Closed Principle to services (Dependency Injection)
 
 ### Issue 002: Modularity & Scalability (Modularity and Scalability Plan)
 - [ ] 1. Restructure server into feature modules

@@ -1,36 +1,47 @@
 /**
- * Script untuk membuat admin user
- * Usage: node create-admin.js
+ * Script to create initial admin user
+ * Usage: node tests/scripts/create-admin.js
  */
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const path = require('path');
+const config = require('../../config');
+const Voter = require('../../models/voterModel');
 
 async function createAdmin() {
     try {
-        // Connect to MongoDB
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/egator_test');
+        console.log('⏳ Connecting to MongoDB...');
+        await mongoose.connect(config.db.url);
         console.log('✅ Connected to MongoDB');
 
-        // Import Voter model
-        const Voter = require('./models/voterModel');
-
-        // Check if admin exists
-        const existingAdmin = await Voter.findOne({ isAdmin: true });
+        // Check if admin already exists
+        const adminEmail = config.admin.email || 'admin@example.com';
+        const existingAdmin = await Voter.findOne({ email: adminEmail });
+        
         if (existingAdmin) {
             console.log('⚠️ Admin already exists:');
             console.log(`   Email: ${existingAdmin.email}`);
             console.log(`   Name: ${existingAdmin.fullName}`);
+            
+            if (!existingAdmin.isAdmin) {
+                console.log('   Updating user to admin status...');
+                existingAdmin.isAdmin = true;
+                await existingAdmin.save();
+                console.log('✅ User updated to admin.');
+            }
+            
             await mongoose.disconnect();
             return;
         }
 
         // Create admin
-        const hashedPassword = await bcrypt.hash('Admin@123456', 10);
+        const adminPassword = config.admin.password || 'Admin@123456';
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        
         const admin = new Voter({
             fullName: 'Admin User',
-            email: 'admin@example.com',
+            email: adminEmail.toLowerCase(),
             password: hashedPassword,
             isAdmin: true
         });
@@ -38,13 +49,16 @@ async function createAdmin() {
         await admin.save();
         console.log('✅ Admin created successfully!');
         console.log('\n📋 Login credentials:');
-        console.log(`   Email: admin@example.com`);
-        console.log(`   Password: Admin@123456`);
+        console.log(`   Email: ${adminEmail}`);
+        console.log(`   Password: ${adminPassword}`);
 
         await mongoose.disconnect();
         console.log('\n✅ Disconnected from MongoDB');
     } catch (error) {
         console.error('❌ Error:', error.message);
+        if (mongoose.connection.readyState !== 0) {
+            await mongoose.disconnect();
+        }
         process.exit(1);
     }
 }

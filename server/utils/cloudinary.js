@@ -1,17 +1,18 @@
 const { v2: cloudinary } = require('cloudinary');
 const HttpError = require('../models/errorModel');
+const config = require('../config');
 
 // Validate configuration exists
-if (!process.env.CLOUDINARY_CLOUD_NAME || 
-    !process.env.CLOUDINARY_API_KEY || 
-    !process.env.CLOUDINARY_API_SECRET) {
+if (!config.cloudinary.cloudName || 
+    !config.cloudinary.apiKey || 
+    !config.cloudinary.apiSecret) {
     console.warn('⚠️  Cloudinary credentials not configured. Image uploads will fail.');
 }
 
 cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: config.cloudinary.cloudName,
+    api_key: config.cloudinary.apiKey,
+    api_secret: config.cloudinary.apiSecret,
 });
 
 /**

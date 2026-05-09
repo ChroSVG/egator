@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const VoterRepository = require('../repositories/voterRepository');
 const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
+const config = require('../config');
 
 /**
  * Auth Service
@@ -14,8 +15,8 @@ const HttpError = require('../models/errorModel');
 class AuthService {
     constructor(voterRepository = null) {
         this.voterRepository = voterRepository || new VoterRepository();
-        this.jwtSecret = process.env.JWT_SECRET;
-        this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1d';
+        this.jwtSecret = config.jwt.secret;
+        this.jwtExpiresIn = config.jwt.expiresIn;
     }
 
     /**

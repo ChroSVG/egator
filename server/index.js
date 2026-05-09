@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 const { connect } = require('mongoose');
-require('dotenv').config();
+const config = require('./config');
 
 const upload = require('express-fileupload');
 const Routes = require('./routes/Routes');
@@ -26,9 +26,7 @@ app.use(helmet({
 }));
 
 // ============ CORS Configuration ============
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',') 
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'];
+const allowedOrigins = config.cors.allowedOrigins;
 
 app.use(cors({
     credentials: true,
@@ -47,7 +45,7 @@ app.use(cors({
 
 // ============ Request Logging ============
 // Morgan - HTTP request logger
-if (process.env.NODE_ENV !== 'test') {
+if (config.env !== 'test') {
     app.use(morgan('combined')); // Use 'dev' for colorful dev output
 }
 
@@ -99,7 +97,7 @@ app.get('/api/health', async (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development',
+        environment: config.env,
         services: {
             mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
             cache: cacheService.useRedis ? 'redis' : 'memory',
@@ -137,13 +135,13 @@ const startServer = async () => {
         // Initialize cache service
         await cacheService.initialize();
         
-        await connect(process.env.MONGO_URL, {
+        await connect(config.db.url, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
         });
         console.log('✅ Connected to MongoDB');
 
-        const PORT = process.env.PORT || 5000;
+        const PORT = config.port;
         server = app.listen(PORT, () => {
             console.log(`🚀 Server is running on port ${PORT}`);
             console.log(`📍 Health check: http://localhost:${PORT}/api/health`);

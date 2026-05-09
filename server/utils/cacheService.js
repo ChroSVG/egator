@@ -15,6 +15,7 @@
  * 
  * Note: Requires Redis. Falls back to in-memory cache if Redis unavailable.
  */
+const config = require('../config');
 
 class CacheService {
     constructor() {
@@ -30,7 +31,7 @@ class CacheService {
     async initialize() {
         try {
             // Only try to connect if Redis URL is provided
-            if (!process.env.REDIS_URL) {
+            if (!config.redis.url) {
                 console.log('ℹ️  Redis not configured, using in-memory cache');
                 this.useRedis = false;
                 return;
@@ -38,7 +39,7 @@ class CacheService {
             
             // Try to connect to Redis if available
             const Redis = require('ioredis');
-            this.redis = new Redis(process.env.REDIS_URL);
+            this.redis = new Redis(config.redis.url);
             
             this.redis.on('error', (err) => {
                 // Silently fall back to memory cache
