@@ -1,19 +1,28 @@
+import React, { lazy, Suspense } from "react"
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import RootLayout from "./pages/RootLayout"
 import ErrorPage from "./pages/ErrorPage"
-import Login from "./pages/Login"
-import Register from "./pages/Register"
-import Congarats from "./pages/Congarats"
-import Logout from "./pages/Logout"
-import ElectionDetails from "./pages/ElectionDetails"
-import Candidates from "./pages/Candidates"
-import Elections from "./pages/Elections"
-import Result from "./pages/Result"
 import ProtectedRoute from "./components/ProtectedRoute"
+import Loader from "./components/Loader"
+
+// Lazy load pages
+const Login = lazy(() => import("./pages/Login"))
+const Register = lazy(() => import("./pages/Register"))
+const Congarats = lazy(() => import("./pages/Congarats"))
+const Logout = lazy(() => import("./pages/Logout"))
+const ElectionDetails = lazy(() => import("./pages/ElectionDetails"))
+const Candidates = lazy(() => import("./pages/Candidates"))
+const Elections = lazy(() => import("./pages/Elections"))
+const Result = lazy(() => import("./pages/Result"))
+
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <RootLayout />,
+    element: (
+      <Suspense fallback={<Loader />}>
+        <RootLayout />
+      </Suspense>
+    ),
     errorElement: <ErrorPage />,
     children: [
       {
