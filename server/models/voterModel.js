@@ -3,12 +3,12 @@ const { Schema, model, Types } = require("mongoose");
 const voterSchema = new Schema({
     fullName: {
         type: String,
-        required: [true, "Nama lengkap wajib diisi"],
+        required: [true, "Full name is required"],
         trim: true
     },
     email: {
         type: String,
-        required: [true, "Email wajib diisi"],
+        required: [true, "Email is required"],
         unique: true,
         lowercase: true,
         trim: true,
@@ -36,7 +36,6 @@ voterSchema.index({ _id: 1, votedElections: 1 });
 // Index for admin lookups
 voterSchema.index({ isAdmin: 1 });
 
-// Index for email lookups (case-insensitive)
-// voterSchema.index({ email: 1 });
+voterSchema.index({ email: 1 });
 
 module.exports = model('Voter', voterSchema);

@@ -29,6 +29,7 @@ const candidateSchema = new Schema({
 }, { timestamps: true });
 
 // Indexes for better query performance - FIXED to use 'elections'
+candidateSchema.index({ fullName: 1 });
 candidateSchema.index({ elections: 1, voteCount: -1 });
 candidateSchema.index({ elections: 1, createdAt: -1 });
 

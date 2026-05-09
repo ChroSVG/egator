@@ -38,6 +38,7 @@ const electionSchema = new Schema({
 electionSchema.index({ createdAt: -1 });
 
 // Index for active elections
+electionSchema.index({ endsAt: 1 });
 electionSchema.index({ isActive: 1, createdAt: -1 });
 
 module.exports = model('Election', electionSchema);
