@@ -1,5 +1,5 @@
-const eventEmitter = require('../src/shared/utils/eventEmitter');
-const logger = require('../src/shared/utils/logger');
+const eventEmitter = require('../utils/eventEmitter');
+const logger = require('../utils/logger');
 
 /**
  * Event Subscribers - Logging

@@ -1,7 +1,7 @@
 const cron = require('node-cron');
-const FailedDeletion = require('../src/shared/models/failedDeletion.model');
-const { cloudinary } = require('../src/shared/utils/cloudinary');
-const config = require('../src/shared/config');
+const FailedDeletion = require('../models/failedDeletion.model');
+const { cloudinary } = require('../utils/cloudinary');
+const config = require('../config');
 
 // Schedule cleanup based on config
 cron.schedule(config.worker.cleanupSchedule, async () => {

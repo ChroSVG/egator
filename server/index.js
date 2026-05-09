@@ -6,8 +6,8 @@ const cacheService = require('./src/shared/utils/cacheService');
 const app = require('./src/app');
 
 // Workers & Subscribers
-require('./workers/cleanupWorker');
-require('./subscribers/loggingSubscriber');
+require('./src/shared/workers/cleanupWorker');
+require('./src/shared/subscribers/loggingSubscriber');
 
 let server;
 
