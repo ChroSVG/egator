@@ -3,11 +3,14 @@ const VotingService = require('../services/votingService');
 const {VoteCommand, CommandHandler} = require('../commands/voteCommand');
 const cacheService = require('../utils/cacheService');
 const HttpError = require('../models/errorModel');
+const responseHelper = require('../utils/responseHelper');
 const ElectionService = require('../services/electionService');
 const candidateService = new CandidateService();
 const votingService = new VotingService();
 const voteHandler = new CommandHandler();
 const electionService = new ElectionService();
+const VoterRepository = require('../repositories/voterRepository');
+const voterRepo = new VoterRepository();
 /**
  * Add Candidate
  * POST /api/candidates
@@ -30,7 +33,8 @@ const addCandidate = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateCandidate();
 
-        return res.status(201).json({
+        return responseHelper.success(res, {
+            statusCode: 201,
             message: 'Candidate added successfully!',
             data: candidate
         });
@@ -64,9 +68,11 @@ const getCandidates = async (req, res, next) => {
             300 // 5 minutes TTL
         );
 
-        return res.json({
-            status: 200,
-            ...result
+        const { data, pagination } = result;
+        return responseHelper.success(res, {
+            message: 'Candidates retrieved successfully!',
+            data,
+            pagination
         });
     } catch (error) {
         next(error);
@@ -92,7 +98,7 @@ const getSingleCandidate = async (req, res, next) => {
             600 // 10 minutes TTL
         );
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Candidate retrieved successfully!',
             data: candidate
         });
@@ -132,10 +138,12 @@ const voteForCandidate = async (req, res, next) => {
         // Fetch updated voter data efficiently
         const updatedVoter = await voterRepo.findByIdSelective(voterId);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Vote registered successfully!',
-            candidate: candidateId,
-            voter: updatedVoter
+            data: {
+                candidate: candidateId,
+                voter: updatedVoter
+            }
         });
     } catch (error) {
         next(error);
@@ -144,7 +152,10 @@ const voteForCandidate = async (req, res, next) => {
 
     // Tambahkan fungsi baru untuk melihat history jika diperlukan
 const getVoteHistory = async (req, res) => {
-    return res.json(voteHandler.getHistory()); // Mengambil 10 history terakhir
+    return responseHelper.success(res, {
+        message: 'Vote history retrieved successfully',
+        data: voteHandler.getHistory()
+    });
 };
 
 
@@ -171,7 +182,7 @@ const updateCandidate = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateCandidate(id);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Candidate updated successfully!',
             data: candidate
         });
@@ -194,7 +205,7 @@ const deleteCandidate = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateCandidate(id);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Candidate deleted successfully!',
             data: candidate
         });
@@ -254,7 +265,7 @@ const addCandidateToElection = async (req, res, next) => {
         await cacheService.invalidateCandidate(effectiveCandidateId);
         await cacheService.invalidateElection(effectiveElectionId);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: fullName ? 'Candidate created and added to election successfully!' : 'Candidate added to election successfully!',
             data: result
         });
@@ -280,7 +291,7 @@ const removeCandidateFromElection = async (req, res, next) => {
         await cacheService.invalidateCandidate(candidateId);
         await cacheService.invalidateElection(electionId);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Candidate removed from election successfully!',
             data: candidate
         });
@@ -315,7 +326,7 @@ const moveCandidateToElection = async (req, res, next) => {
         await cacheService.invalidateElection(fromElectionId);
         await cacheService.invalidateElection(toElectionId);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Candidate moved successfully!',
             data: candidate
         });

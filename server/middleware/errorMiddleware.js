@@ -1,9 +1,4 @@
-/**
- * Error Middleware
- * 
- * Centralized error handling for the application.
- * Ensures consistent error response format across all endpoints.
- */
+const config = require('../config');
 
 /**
  * 404 Not Found Handler
@@ -34,7 +29,6 @@ const errorHandler = (err, req, res, next) => {
     const errorResponse = {
         success: false,
         message: err.message || 'Internal Server Error',
-        statusCode
     };
 
     // Add request ID if available
@@ -49,14 +43,14 @@ const errorHandler = (err, req, res, next) => {
     }
 
     // Add stack trace in development only
-    if (process.env.NODE_ENV === 'development') {
+    if (config.env === 'development') {
         errorResponse.stack = err.stack;
     }
 
     // Log error for debugging
     console.error(`❌ [${statusCode}] ${req.method} ${req.originalUrl}`);
     console.error(`   Message: ${err.message}`);
-    if (process.env.NODE_ENV === 'development') {
+    if (config.env === 'development') {
         console.error(`   Stack: ${err.stack}`);
     }
 

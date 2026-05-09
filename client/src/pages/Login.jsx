@@ -36,7 +36,7 @@ const Login = () => {
         try {
           const response = await API.post('/voters/login', userData);
 
-          const newVoter = await response.data;
+          const newVoter = response.data.data;
           // Simpan data voter ke localStorage
           localStorage.setItem('currentUser', JSON.stringify(newVoter));
           // Update state global dengan data voter yang baru

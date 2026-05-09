@@ -38,10 +38,10 @@ const ConfirmVote = ({ selectedElection, token: propToken }) => { // 2. Terima p
 
       if (response.status === 200) {
         // 4. Update data voter di Redux agar status 'hasVoted' langsung berubah
-        if (response.data.voter) {
+        if (response.data.data?.voter) {
           dispatch(voteActions.changeCurrentVoter({
             ...currentVoter,
-            votedElections: response.data.voter.votedElections
+            votedElections: response.data.data.voter.votedElections
           }));
         }
 

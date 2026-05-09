@@ -2,6 +2,7 @@ const ElectionService = require('../services/electionService');
 const cacheService = require('../utils/cacheService');
 const { cloudinaryBreaker } = require('../utils/circuitBreaker');
 const HttpError = require('../models/errorModel');
+const responseHelper = require('../utils/responseHelper');
 
 const electionService = new ElectionService();
 
@@ -26,7 +27,8 @@ const addElection = async (req, res, next) => {
         // Invalidate elections cache
         await cacheService.invalidateElection();
 
-        return res.status(201).json({
+        return responseHelper.success(res, {
+            statusCode: 201,
             message: 'Election added successfully!',
             data: election
         });
@@ -55,12 +57,11 @@ const getElections = async (req, res, next) => {
         );
 
 
-        const { data, ...otherProps } = result;
-
-        return res.json({
+        const { data, pagination } = result;
+        return responseHelper.success(res, {
             message: 'Elections retrieved successfully!',
-            elections: data,
-            ...otherProps,
+            data,
+            pagination
         });
     } catch (error) {
         next(error);
@@ -87,7 +88,7 @@ const getSingleElection = async (req, res, next) => {
             600 // 10 minutes TTL
         );
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Election retrieved successfully!',
             data: election
         });
@@ -115,7 +116,7 @@ const updateElection = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateElection(id);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Election updated successfully!',
             data: election
         });
@@ -138,7 +139,7 @@ const deleteElection = async (req, res, next) => {
         // Invalidate cache
         await cacheService.invalidateElection(id);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Election deleted successfully!',
             data: election
         });
@@ -159,9 +160,8 @@ const getCandidatesOfElection = async (req, res, next) => {
         const candidates = await electionService.getElectionCandidates(id);
         console.log('[getCandidatesOfElection] Candidates:', candidates);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Election candidates retrieved successfully!',
-            count: candidates.length,
             data: candidates
         });
     } catch (error) {
@@ -180,9 +180,8 @@ const getVotersOfElection = async (req, res, next) => {
 
         const voters = await electionService.getElectionVoters(id);
 
-        return res.json({
+        return responseHelper.success(res, {
             message: 'Election voters retrieved successfully!',
-            count: voters.length,
             data: voters
         });
     } catch (error) {
@@ -209,7 +208,7 @@ const getElectionResults = async (req, res, next) => {
             60 // 1 minute TTL - results may change frequently
         );
 
-        res.json({
+        return responseHelper.success(res, {
             message: 'Election results retrieved successfully!',
             data: results
         });

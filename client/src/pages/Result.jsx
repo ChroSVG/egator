@@ -20,7 +20,7 @@ const Result = () => {
         console.log('API Response:', response.data);
 
         // Axios sudah mem-parse JSON secara otomatis, langsung ambil .data
-        const electionsData = response.data.elections || [];
+        const electionsData = response.data.data || [];
         console.log('Elections data:', electionsData);
         
         setElections(electionsData);

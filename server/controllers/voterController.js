@@ -1,6 +1,7 @@
 const AuthService = require('../services/authService');
 const { validateEmail, validatePassword } = require('../middleware/validationMiddleware');
 const HttpError = require('../models/errorModel');
+const responseHelper = require('../utils/responseHelper');
 
 const authService = new AuthService();
 
@@ -19,7 +20,11 @@ const registerVoter = async (req, res, next) => {
             password2
         });
 
-        return res.status(201).json(result);
+        return responseHelper.success(res, {
+            statusCode: 201,
+            message: 'Voter registered successfully',
+            data: result
+        });
     } catch (error) {
         next(error);
     }
@@ -36,7 +41,10 @@ const loginVoter = async (req, res, next) => {
 
         const result = await authService.login({ email, password });
 
-        return res.json(result);
+        return responseHelper.success(res, {
+            message: 'Login successful',
+            data: result
+        });
     } catch (error) {
         next(error);
     }
@@ -57,7 +65,10 @@ const getVoter = async (req, res, next) => {
 
         const voter = await authService.getVoterById(id);
 
-        return res.json({ voter });
+        return responseHelper.success(res, {
+            message: 'Voter details retrieved successfully',
+            data: voter
+        });
     } catch (error) {
         next(error);
     }

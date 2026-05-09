@@ -29,7 +29,7 @@ const Elections = () => {
   const fetchElections = async() => {
     try{
       const response = await API.get('/elections')
-      dispatch(voteActions.setElections(response.data.elections))
+      dispatch(voteActions.setElections(response.data.data))
     } catch(error){
       console.error(error)
     }
