@@ -22,6 +22,10 @@ const config = {
         email: process.env.ADMIN_EMAIL,
         password: process.env.ADMIN_PASSWORD,
     },
+    worker: {
+        cleanupSchedule: process.env.CLEANUP_SCHEDULE || '0 * * * *', // Every hour
+        maxRetryAttempts: parseInt(process.env.MAX_CLEANUP_RETRIES) || 5,
+    },
     cors: {
         allowedOrigins: process.env.ALLOWED_ORIGINS 
             ? process.env.ALLOWED_ORIGINS.split(',') 
