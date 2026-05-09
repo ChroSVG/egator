@@ -1,27 +1,27 @@
-const CandidateService = require('../services/candidateService');
-const VotingService = require('../services/votingService');
-const {VoteCommand, CommandHandler} = require('../commands/voteCommand');
-const cacheService = require('../utils/cacheService');
-const HttpError = require('../models/errorModel');
-const responseHelper = require('../utils/responseHelper');
-const ElectionService = require('../services/electionService');
+const CandidateService = require('./candidate.service');
+const VotingService = require('../vote/vote.service');
+const { VoteCommand, CommandHandler } = require('../vote/vote.command');
+const cacheService = require('../../shared/utils/cacheService');
+const HttpError = require('../../shared/models/errorModel');
+const responseHelper = require('../../shared/utils/responseHelper');
+const ElectionService = require('../election/election.service');
+const VoterRepository = require('../auth/auth.repository');
+
 const candidateService = new CandidateService();
 const votingService = new VotingService();
 const voteHandler = new CommandHandler();
 const electionService = new ElectionService();
-const VoterRepository = require('../repositories/voterRepository');
 const voterRepo = new VoterRepository();
+
 /**
  * Add Candidate
- * POST /api/candidates
  */
 const addCandidate = async (req, res, next) => {
     try {
-
         const { fullName, motto, election } = req.body;
 
         if (!req.files || !req.files.image) {
-            throw new HttpError('Please provide an image for the candidate', 400);
+            throw new HttpError('Please provide a candidate image', 400);
         }
 
         const candidate = await candidateService.createCandidate(
@@ -29,9 +29,8 @@ const addCandidate = async (req, res, next) => {
             req.files.image
         );
 
-
-        // Invalidate cache
         await cacheService.invalidateCandidate();
+        await cacheService.invalidateElection(election);
 
         return responseHelper.success(res, {
             statusCode: 201,
@@ -45,34 +44,18 @@ const addCandidate = async (req, res, next) => {
 
 /**
  * Get All Candidates
- * GET /api/candidates
  */
 const getCandidates = async (req, res, next) => {
     try {
-        const { election, search, sort, page = 1, limit = 10 } = req.query;
-
-        // Try cache first
-        const cacheKey = `candidates:${election || 'all'}:${search || ''}:${sort || 'createdAt'}:${page}:${limit}`;
-
-        const result = await cacheService.getOrSet(
-            cacheKey,
-            async () => {
-                return await candidateService.getCandidates({
-                    election,
-                    search,
-                    sort,
-                    page,
-                    limit
-                });
-            },
-            300 // 5 minutes TTL
+        const candidates = await cacheService.getOrSet(
+            'candidates:all',
+            async () => await candidateService.getAllCandidates(),
+            300
         );
 
-        const { data, pagination } = result;
         return responseHelper.success(res, {
             message: 'Candidates retrieved successfully!',
-            data,
-            pagination
+            data: candidates
         });
     } catch (error) {
         next(error);
@@ -81,21 +64,14 @@ const getCandidates = async (req, res, next) => {
 
 /**
  * Get Single Candidate
- * GET /api/candidates/:id
  */
 const getSingleCandidate = async (req, res, next) => {
     try {
         const { id } = req.params;
-
-        // Try cache first
-        const cacheKey = `candidate:${id}`;
-
         const candidate = await cacheService.getOrSet(
-            cacheKey,
-            async () => {
-                return await candidateService.getCandidateById(id);
-            },
-            600 // 10 minutes TTL
+            `candidate:${id}`,
+            async () => await candidateService.getCandidateById(id),
+            600
         );
 
         return responseHelper.success(res, {
@@ -107,13 +83,8 @@ const getSingleCandidate = async (req, res, next) => {
     }
 };
 
-const voterRepo = new (require('../repositories/voterRepository'))();
-
 /**
- * Vote for Candidate
- * PATCH /api/candidates/:id/vote
- * 
- * Uses Command Pattern for better control and audit trail.
+ * Vote For Candidate
  */
 const voteForCandidate = async (req, res, next) => {
     try {
@@ -121,21 +92,16 @@ const voteForCandidate = async (req, res, next) => {
         const { selectedElectionId } = req.body;
         const voterId = req.user.id;
 
-        if (!voterId || !selectedElectionId) {
-            throw new HttpError('Missing voter ID or election ID', 400);
-        }
+        const voteCommand = new VoteCommand(
+            votingService,
+            candidateId,
+            voterId,
+            selectedElectionId
+        );
 
-        // Create vote command
-        const voteCommand = new VoteCommand(voterId, candidateId, selectedElectionId);
+        await voteHandler.execute(voteCommand);
 
-        // Execute command
-        await voteHandler.executeCommand(voteCommand);
-        
-        // Invalidate cache
-        await cacheService.invalidateElection(selectedElectionId);
-        await cacheService.invalidateCandidate(candidateId);
-
-        // Fetch updated voter data efficiently
+        // Fetch updated voter data
         const updatedVoter = await voterRepo.findByIdSelective(voterId);
 
         return responseHelper.success(res, {
@@ -150,7 +116,9 @@ const voteForCandidate = async (req, res, next) => {
     }
 };
 
-    // Tambahkan fungsi baru untuk melihat history jika diperlukan
+/**
+ * Get Vote History
+ */
 const getVoteHistory = async (req, res) => {
     return responseHelper.success(res, {
         message: 'Vote history retrieved successfully',
@@ -158,28 +126,20 @@ const getVoteHistory = async (req, res) => {
     });
 };
 
-
-
 /**
  * Update Candidate
- * PATCH /api/candidates/:id
  */
 const updateCandidate = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { fullName, motto } = req.body;
 
-        // Build update data (partial update supported)
-        const updateData = {};
-        if (fullName !== undefined) updateData.fullName = fullName;
-        if (motto !== undefined) updateData.motto = motto;
+        const candidate = await candidateService.updateCandidate(
+            id,
+            { fullName, motto },
+            req.files?.image || null
+        );
 
-        // Handle optional image upload
-        const file = req.files?.image || null;
-
-        const candidate = await candidateService.updateCandidate(id, updateData, file);
-
-        // Invalidate cache
         await cacheService.invalidateCandidate(id);
 
         return responseHelper.success(res, {
@@ -193,16 +153,12 @@ const updateCandidate = async (req, res, next) => {
 
 /**
  * Delete Candidate
- * DELETE /api/candidates/:id
  */
 const deleteCandidate = async (req, res, next) => {
     try {
-
         const { id } = req.params;
-
         const candidate = await candidateService.deleteCandidate(id);
 
-        // Invalidate cache
         await cacheService.invalidateCandidate(id);
 
         return responseHelper.success(res, {
@@ -216,52 +172,22 @@ const deleteCandidate = async (req, res, next) => {
 
 /**
  * Add Candidate to Election
- * POST /api/candidates/:id/elections/:electionId
- * Link existing candidate to another election
  */
 const addCandidateToElection = async (req, res, next) => {
     try {
-        const { id, electionId: paramElectionId } = req.params;
+        const { id: candidateId, electionId } = req.params;
         const { fullName, motto } = req.body;
-        
-        // Determine IDs based on route parameters
-        // Case 1: /candidates/elections/:id -> id is electionId
-        // Case 2: /candidates/:id/elections/:electionId -> id is candidateId, paramElectionId is electionId
-        const effectiveElectionId = paramElectionId || id;
-        let effectiveCandidateId = paramElectionId ? id : null;
 
-        if (!effectiveElectionId) {
-            throw new HttpError('Missing election ID', 400);
-        }
+        const effectiveCandidateId = candidateId === 'new' ? null : candidateId;
+        const effectiveElectionId = electionId || req.body.election;
 
-        // Verify if election exists
-        const election = await electionService.getElectionById(effectiveElectionId);
-        if (!election) {
-            throw new HttpError('Election not found', 404);
-        }
+        const result = await candidateService.addCandidateToElection(
+            effectiveCandidateId,
+            effectiveElectionId,
+            { fullName, motto },
+            req.files?.image || null
+        );
 
-        let result;
-        if (fullName) {
-            // CASE A: Create NEW candidate and add to election
-            if (!req.files || !req.files.image) {
-                throw new HttpError('Please provide an image for the candidate', 400);
-            }
-
-            // createCandidate service already links candidate to the election
-            result = await candidateService.createCandidate(
-                { fullName, motto, election: effectiveElectionId },
-                req.files.image
-            );
-            effectiveCandidateId = result._id;
-        } else {
-            // CASE B: Add EXISTING candidate to election
-            if (!effectiveCandidateId) {
-                throw new HttpError('Missing candidate ID for linking existing candidate', 400);
-            }
-            result = await candidateService.addCandidateToElection(effectiveCandidateId, effectiveElectionId);
-        }
-
-        // Invalidate cache
         await cacheService.invalidateCandidate(effectiveCandidateId);
         await cacheService.invalidateElection(effectiveElectionId);
 
@@ -276,18 +202,12 @@ const addCandidateToElection = async (req, res, next) => {
 
 /**
  * Remove Candidate from Election
- * DELETE /api/candidates/:id/elections/:electionId
- * Unlink candidate from election (without deleting candidate)
  */
 const removeCandidateFromElection = async (req, res, next) => {
     try {
-
-        const { id: candidateId } = req.params;
-        const { electionId } = req.params;
-
+        const { id: candidateId, electionId } = req.params;
         const candidate = await candidateService.removeCandidateFromElection(candidateId, electionId);
 
-        // Invalidate cache
         await cacheService.invalidateCandidate(candidateId);
         await cacheService.invalidateElection(electionId);
 
@@ -301,27 +221,15 @@ const removeCandidateFromElection = async (req, res, next) => {
 };
 
 /**
- * Move Candidate to Different Election
- * POST /api/candidates/:id/move
- * Move candidate from one election to another
+ * Move Candidate between Elections
  */
 const moveCandidateToElection = async (req, res, next) => {
     try {
-
         const { id: candidateId } = req.params;
         const { fromElectionId, toElectionId } = req.body;
 
-        if (!fromElectionId || !toElectionId) {
-            throw new HttpError('Please provide fromElectionId and toElectionId', 400);
-        }
+        const candidate = await candidateService.moveCandidateToElection(candidateId, fromElectionId, toElectionId);
 
-        const candidate = await candidateService.moveCandidateToElection(
-            candidateId,
-            fromElectionId,
-            toElectionId
-        );
-
-        // Invalidate cache
         await cacheService.invalidateCandidate(candidateId);
         await cacheService.invalidateElection(fromElectionId);
         await cacheService.invalidateElection(toElectionId);
@@ -340,10 +248,10 @@ module.exports = {
     getCandidates,
     getSingleCandidate,
     voteForCandidate,
-    deleteCandidate,
     getVoteHistory,
+    updateCandidate,
+    deleteCandidate,
     addCandidateToElection,
     removeCandidateFromElection,
-    moveCandidateToElection,
-    updateCandidate
+    moveCandidateToElection
 };

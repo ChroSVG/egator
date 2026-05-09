@@ -1,7 +1,7 @@
 const cron = require('node-cron');
-const FailedDeletion = require('../models/failedDeletionModel');
-const { cloudinary } = require('../utils/cloudinary');
-const config = require('../config');
+const FailedDeletion = require('../src/shared/models/failedDeletion.model');
+const { cloudinary } = require('../src/shared/utils/cloudinary');
+const config = require('../src/shared/config');
 
 // Schedule cleanup based on config
 cron.schedule(config.worker.cleanupSchedule, async () => {
@@ -13,7 +13,6 @@ cron.schedule(config.worker.cleanupSchedule, async () => {
         });
 
         if (failedFiles.length === 0) {
-            console.log('✅ No failed deletions to clean up.');
             return;
         }
 
@@ -30,10 +29,8 @@ cron.schedule(config.worker.cleanupSchedule, async () => {
                     file.attemptCount += 1;
                     file.lastAttempt = new Date();
                     await file.save();
-                    console.warn(`   ⚠️  Cloudinary returned: ${result.result} for ${file.publicId}`);
                 }
             } catch (error) {
-                console.error(`   ❌ Update attempt failed for ${file.publicId}:`, error.message);
                 file.attemptCount += 1;
                 file.lastAttempt = new Date();
                 await file.save();

@@ -1,11 +1,10 @@
-const BaseRepository = require('./baseRepository');
-const VoteRecord = require('../models/voteRecordModel');
+const BaseRepository = require('../../shared/repositories/baseRepository');
+const VoteRecord = require('./vote.model');
 
 /**
  * VoteRecord Repository
  * 
  * Handles vote recording with database-level uniqueness guarantee.
- * This is the authoritative record of who voted for whom.
  */
 class VoteRecordRepository extends BaseRepository {
     constructor() {
@@ -13,15 +12,11 @@ class VoteRecordRepository extends BaseRepository {
     }
 
     /**
-     * Record a vote (with unique constraint protection)
-     * @param {object} voteData - Vote data
-     * @param {object} session - MongoDB session
-     * @returns {Promise<object>}
+     * Record a vote
      */
     async recordVote(voteData, session = null) {
         const { voter, election, candidate } = voteData;
         
-        // Try to create vote record - will fail if voter already voted
         try {
             return await this.create({
                 voter,
@@ -29,7 +24,6 @@ class VoteRecordRepository extends BaseRepository {
                 candidate
             }, { session });
         } catch (error) {
-            // E11000 = Duplicate key error
             if (error.code === 11000) {
                 throw new Error('You have already voted in this election');
             }
@@ -39,9 +33,6 @@ class VoteRecordRepository extends BaseRepository {
 
     /**
      * Check if voter has voted in election
-     * @param {string} voterId - Voter ID
-     * @param {string} electionId - Election ID
-     * @returns {Promise<boolean>}
      */
     async hasVoted(voterId, electionId, options = {}) {
         return await this.exists({ voter: voterId, election: electionId }, options);
@@ -49,9 +40,6 @@ class VoteRecordRepository extends BaseRepository {
 
     /**
      * Get vote record with details
-     * @param {string} voterId - Voter ID
-     * @param {string} electionId - Election ID
-     * @returns {Promise<object|null>}
      */
     async getVote(voterId, electionId) {
         return await this.findOne(
@@ -67,9 +55,6 @@ class VoteRecordRepository extends BaseRepository {
 
     /**
      * Get all votes for an election
-     * @param {string} electionId - Election ID
-     * @param {object} options - Query options
-     * @returns {Promise<Array>}
      */
     async getElectionVotes(electionId, options = {}) {
         return await this.findAll(
@@ -86,54 +71,7 @@ class VoteRecordRepository extends BaseRepository {
     }
 
     /**
-     * Get votes grouped by candidate
-     * @param {string} electionId - Election ID
-     * @returns {Promise<Array>}
-     */
-    async getVotesByCandidate(electionId) {
-        const votes = await this.getElectionVotes(electionId);
-        
-        const grouped = votes.reduce((acc, vote) => {
-            const candidateId = vote.candidate._id.toString();
-            if (!acc[candidateId]) {
-                acc[candidateId] = {
-                    candidateId,
-                    candidateName: vote.candidate.fullName,
-                    count: 0,
-                    voters: []
-                };
-            }
-            acc[candidateId].count++;
-            acc[candidateId].voters.push({
-                voterId: vote.voter._id,
-                voterName: vote.voter.fullName,
-                votedAt: vote.votedAt
-            });
-            return acc;
-        }, {});
-        
-        return Object.values(grouped);
-    }
-
-    /**
-     * Get vote count for candidate
-     * @param {string} candidateId - Candidate ID
-     * @param {string} electionId - Election ID (optional)
-     * @returns {Promise<number>}
-     */
-    async countVotesForCandidate(candidateId, electionId = null) {
-        const filter = { candidate: candidateId };
-        if (electionId) {
-            filter.election = electionId;
-        }
-        return await this.count(filter);
-    }
-
-    /**
      * Get recent votes
-     * @param {string} electionId - Election ID
-     * @param {number} limit - Max results
-     * @returns {Promise<Array>}
      */
     async getRecentVotes(electionId, limit = 10) {
         return await this.findAll(
@@ -150,11 +88,7 @@ class VoteRecordRepository extends BaseRepository {
     }
 
     /**
-     * Delete vote (for admin/correction purposes)
-     * @param {string} voterId - Voter ID
-     * @param {string} electionId - Election ID
-     * @param {object} session - MongoDB session
-     * @returns {Promise<object>}
+     * Delete vote
      */
     async deleteVote(voterId, electionId, session = null) {
         return await this.deleteMany(
@@ -165,8 +99,6 @@ class VoteRecordRepository extends BaseRepository {
 
     /**
      * Get vote audit trail for voter
-     * @param {string} voterId - Voter ID
-     * @returns {Promise<Array>}
      */
     async getVoterAuditTrail(voterId) {
         return await this.findAll(
