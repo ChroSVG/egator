@@ -9,12 +9,12 @@ const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const { withTransaction } = require('../utils/transactionHelper');
 const cacheService = require('../utils/cacheService');
-// Tambahkan/Update baris ini di bagian atas file service
+// Add/Update this line at the top of the service file
 const FailedDeletion = require('../models/failedDeletionModel'); 
 const { 
     uploadToCloudinary, 
     deleteFromCloudinary, 
-    extractPublicId // Pastikan ini di-import
+    extractPublicId // Ensure this is imported
 } = require('../utils/cloudinary');
 const { safeCloudinaryDelete } = require('../utils/helper');
 const { uploadImageHelper } = require('../utils/uploadHelper');
@@ -79,7 +79,7 @@ class ElectionService {
             return election;
 
         } catch (error) {
-            // RECOVERY LOGIC: Jika DB gagal, hapus gambar di Cloudinary
+            // RECOVERY LOGIC: If DB fails, delete image on Cloudinary
             if (uploadedImageUrl) {
                 safeCloudinaryDelete(election.thumbnail);
             }
@@ -132,30 +132,30 @@ class ElectionService {
     }
 
 /**
- * Update election (Mendukung Partial Update)
+ * Update election (Supports Partial Update)
  * @param {string} id - Election ID
- * @param {object} data - Update data (bisa hanya title atau description saja)
+ * @param {object} data - Update data (can be just title or description)
  * @param {object} file - New thumbnail file (optional)
  * @returns {Promise<object>}
  */
 async updateElection(id, data, file = null) {
-    // 1. Cari data lama untuk validasi dan referensi thumbnail
+    // 1. Find old data for validation and thumbnail reference
     const election = await this.electionRepository.findById(id);
     if (!election) {
         throw new HttpError('Election not found', 404);
     }
 
-    // 2. Bangun objek update secara dinamis (Hanya kolom yang ada di 'data' yang dimasukkan)
+    // 2. Build update object dynamically (Only columns present in 'data' are included)
     const updateData = {};
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
 
-    // 3. Handle thumbnail baru jika ada
+    // 3. Handle new thumbnail if provided
     if (file) {
-        // HAPUS LAMA (Non-blocking: Kita tidak menunggu proses ini selesai)
+        // DELETE OLD (Non-blocking: We do not wait for this process to finish)
         safeCloudinaryDelete(election.thumbnail);
 
-        // UPLOAD BARU (Tetap ditunggu karena kita butuh URL-nya untuk disimpan ke DB)
+        // UPLOAD NEW (Still awaited because we need the URL to save to DB)
         const newThumbnail = await cloudinaryBreaker.execute(
             async () => await uploadImageHelper(file, 'elections'),
             { fallback: null }
@@ -166,16 +166,16 @@ async updateElection(id, data, file = null) {
         }
     }
 
-    // 4. Jika tidak ada data yang diupdate, langsung kembalikan data lama
+    // 4. If no data is updated, return old data directly
     if (Object.keys(updateData).length === 0) {
         return election;
     }
 
-    // 5. Eksekusi update ke database
+    // 5. Execute update to database
     const updatedElection = await this.electionRepository.updateById(id, updateData);
 
 
-    // 7. Emit event untuk sistem lain (misal: log atau real-time dashboard)
+    // 7. Emit event for other systems (e.g., log or real-time dashboard)
     eventEmitter.emitElectionUpdated({
         electionId: id,
         title: updatedElection.title
@@ -207,13 +207,13 @@ async updateElection(id, data, file = null) {
 
         await this.electionRepository.deleteById(id, { session });
         
-        // TAMBAHKAN INI: Hapus referensi electionId dari semua voter
+        // ADD THIS: Remove electionId reference from all voters
         await this.voterRepository.removeElectionReference(id, {session})
     });
     
-    // JAUH LEBIH BERSIH:
-    // Panggil helper yang sudah menangani circuit breaker, catch error, 
-    // extractPublicId, dan pencatatan ke tabel FailedDeletion secara otomatis.
+    // MUCH CLEANER:
+    // Call helper that handles circuit breaker, catch error,
+    // extractPublicId, and FailedDeletion logging automatically.
     safeCloudinaryDelete(election.thumbnail);
 
     eventEmitter.emitElectionDeleted({

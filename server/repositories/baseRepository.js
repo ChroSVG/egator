@@ -99,20 +99,20 @@ class BaseRepository {
      * @returns {Promise<object|null>}
      */
     async updateById(id, update, options = {}) {
-        // 1. Ambil session jika ada (untuk transaksi)
+        // 1. Get session if provided (for transactions)
         const { session = null } = options;
 
-        // 2. Cek apakah update sudah menggunakan operator MongoDB ($set, $addToSet, $inc, dll)
+        // 2. Check if the update already uses MongoDB operators ($set, $addToSet, $inc, etc.)
         const hasOperator = Object.keys(update).some(key => key.startsWith('$'));
 
         return await this.model.findByIdAndUpdate(
             id,
-            // 3. Jika sudah ada operator, gunakan langsung. Jika tidak, bungkus dengan $set
+            // 3. If operators exist, use directly. Otherwise, wrap with $set
             hasOperator ? update : { $set: update },
             {
-                // 4. Gunakan returnDocument: 'after' untuk menggantikan new: true (menghapus warning)
+                // 4. Use returnDocument: 'after' instead of new: true (to remove warning)
                 returnDocument: 'after',
-                // 5. Set runValidators ke false agar tidak protes kolom required lain saat update parsial
+                // 5. Set runValidators to false to avoid issues with other required fields during partial updates
                 runValidators: false,
                 session
             }

@@ -8,15 +8,15 @@ const eventEmitter = require('../utils/eventEmitter');
 const HttpError = require('../models/errorModel');
 const mongoose = require('mongoose');
 const { withTransaction } = require('../utils/transactionHelper');
-// Tambahkan/Update baris ini di bagian atas file service
+// Add/Update this line at the top of the service file
 const FailedDeletion = require('../models/failedDeletionModel'); 
 const { 
     uploadToCloudinary, 
     deleteFromCloudinary, 
-    extractPublicId // Pastikan ini di-import
+    extractPublicId // Ensure this is imported
 } = require('../utils/cloudinary');
 
-const { safeCloudinaryDelete } = require('../utils/helper'); // Import helper untuk safe delete
+const { safeCloudinaryDelete } = require('../utils/helper'); // Import helper for safe delete
 const { uploadImageHelper } = require('../utils/uploadHelper');
 
 
@@ -44,33 +44,33 @@ class CandidateService {
  * @returns {Promise<object>}
  */
 async createCandidate(data, file) {
-    const { fullName, motto, election } = data; // 'election' di sini adalah ID election yang dipilih
+    const { fullName, motto, election } = data; // 'election' here is the ID of the selected election
     let uploadedImageUrl = null;
     let candidate = null;
 
     try {
-        // Jalankan transaksi database
+        // Run database transaction
         candidate = await withTransaction(async (session) => { 
-            // 1. Verifikasi apakah election yang dituju ada
+            // 1. Verify if the target election exists
             const electionExists = await this.electionRepository.findById(election, { session });
             if (!electionExists) {
                 throw new HttpError('Election not found', 404);
             }
 
-            // 2. Cek apakah kandidat dengan nama ini sudah ada di database
-            // Kita ingin satu kandidat bisa punya banyak election
+            // 2. Check if a candidate with this name already exists in the database
+            // We want one candidate to be able to belong to multiple elections
             let existingCandidate = await this.candidateRepository.findOne({ fullName }, { session });
 
             if (existingCandidate) {
-                // JIKA KANDIDAT SUDAH ADA:
-                // Tambahkan ID election baru ke array 'elections' milik kandidat (gunakan $addToSet agar tidak duplikat)
+                // IF CANDIDATE ALREADY EXISTS:
+                // Add the new election ID to the candidate's 'elections' array (use $addToSet to avoid duplicates)
                 candidate = await this.candidateRepository.updateById(
                     existingCandidate._id,
                     { $addToSet: { elections: election } },
                     { session }
                 );
             } else {
-                // JIKA KANDIDAT BELUM ADA:
+                // IF CANDIDATE DOES NOT EXIST YET:
                 // Upload image ke Cloudinary
                 uploadedImageUrl = await cloudinaryBreaker.execute(
                     async () => await uploadImageHelper(file, 'candidates'),
@@ -90,13 +90,13 @@ async createCandidate(data, file) {
                 }, { session });
             }
 
-            // 3. Update dokumen Election agar ID kandidat masuk ke list candidates election tersebut
+            // 3. Update the Election document to include the candidate ID in the election's candidates list
             await this.electionRepository.addCandidate(election, candidate._id, session);
 
             return candidate;
         });
 
-        // 4. Emit event sukses
+        // 4. Emit success event
         eventEmitter.emitCandidateCreated({
             candidateId: candidate._id,
             name: candidate.fullName,
@@ -106,7 +106,7 @@ async createCandidate(data, file) {
         return candidate;
 
     } catch (error) {
-        // RECOVERY: Jika gagal simpan ke DB padahal gambar sudah terlanjur upload
+        // RECOVERY: If saving to DB fails but the image has already been uploaded
         if (uploadedImageUrl) {
             const publicId = extractPublicId(uploadedImageUrl);
             safeCloudinaryDelete(publicId, 'candidates');
@@ -230,7 +230,7 @@ async createCandidate(data, file) {
     async deleteCandidate(id) {
     let candidate;
 
-    // 1. Jalankan transaksi Database saja
+    // 1. Run database transaction only
     await withTransaction(async (session) => {
         candidate = await this.candidateRepository.findById(id, { session });
 
@@ -238,7 +238,7 @@ async createCandidate(data, file) {
             throw new HttpError('Candidate not found', 404);
         }
 
-        // Hapus relasi dari semua election yang terkait
+        // Remove relations from all associated elections
         if (candidate.elections && candidate.elections.length > 0) {
             for (const electionId of candidate.elections) {
                 await this.electionRepository.removeCandidate(electionId, id, session);
@@ -248,8 +248,8 @@ async createCandidate(data, file) {
         await this.candidateRepository.deleteById(id, { session });
     });
 
-    // 2. Jika kode sampai di sini, artinya Transaksi DB SUKSES (Commit)
-    // Sekarang baru aman hapus gambar di Cloudinary
+    // 2. If code reaches here, it means DB Transaction was SUCCESSFUL (Commit)
+    // Now it's safe to delete the image on Cloudinary
     if (candidate && candidate.image) {
         safeCloudinaryDelete(candidate.image);
     }

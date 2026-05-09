@@ -6,13 +6,13 @@ const {
 const {cloudinaryBreaker} = require('../utils/circuitBreaker');
 
 /**
- * Menghapus file dari Cloudinary secara aman (non-blocking)
+ * Delete a file from Cloudinary safely (non-blocking)
  * @param {string} imageUrl 
  */
 const safeCloudinaryDelete = (imageUrl) => {
     if (!imageUrl) return;
 
-    // Tidak menggunakan 'await' agar API response tetap cepat
+    // Do not use 'await' so that the API response remains fast
     cloudinaryBreaker.execute(async () => {
         try {
             return await deleteFromCloudinary(imageUrl);
@@ -20,22 +20,22 @@ const safeCloudinaryDelete = (imageUrl) => {
             console.warn(`⚠️ Background cleanup failed for: ${imageUrl}. Error: ${err.message}`);
             
             try {
-                // Pastikan model FailedDeletion sudah di-require di file ini
+                // Ensure FailedDeletion model is required in this file
                 await FailedDeletion.create({
                     publicId: extractPublicId(imageUrl),
                     imageUrl: imageUrl,
                     reason: err.message
                 });
             } catch (dbErr) {
-                console.error('[CRITICAL] Gagal menyimpan log FailedDeletion:', dbErr.message);
+                console.error('[CRITICAL] Failed to save FailedDeletion log:', dbErr.message);
             }
         }
     }).catch((err) => {
-        console.error('[CRITICAL] Gagal menjalankan cleanup:', err.message);
+        console.error('[CRITICAL] Failed to execute cleanup:', err.message);
     });
 };
 
-// Gunakan CommonJS export agar cocok dengan file service Anda
+// Use CommonJS export to match your service files
 module.exports = {
     safeCloudinaryDelete
 };
