@@ -87,10 +87,13 @@ app.use(upload({
 }));
 
 // ============ API Routes ============
-app.use('/api', Routes);
+app.use('/api/v1', Routes);
+
+// Redirect /api to /api/v1
+app.get('/api', (req, res) => res.redirect('/api/v1'));
 
 // ============ Health Check ============
-app.get('/api/health', async (req, res) => {
+app.get('/api/v1/health', async (req, res) => {
     const { registry } = require('./utils/circuitBreaker');
     
     const healthStatus = {
