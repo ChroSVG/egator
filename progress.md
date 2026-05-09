@@ -16,7 +16,7 @@ This file tracks the progress of fixing issues and improving the codebase.
 - [x] 2. Fix inconsistent localStorage keys (`"currentUser"`)
 - [x] 3. Remove dead `voteQueue.js` middleware
 - [x] 4. Replace hard page reloads with React state/Redux updates
-- [ ] 5. Create `ProtectedRoute` wrapper for auth
+- [x] 5. Create `ProtectedRoute` wrapper for auth
 - [ ] 6. Remove duplicate `getElectionResults` from services
 - [ ] 7. Clean up unused `VoteCommand.validate()`
 - [ ] 8. Clean up `client/src/data.js` (dead code)

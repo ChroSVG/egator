@@ -87,21 +87,6 @@ class VotingService {
         };
     }
 
-    /**
-     * Get election results
-     * @param {string} electionId - Election ID
-     * @returns {Promise<object>}
-     */
-    async getElectionResults(electionId) {
-        // Get results from election repository (includes vote statistics)
-        const results = await this.electionRepository.getResults(electionId);
-        
-        if (!results) {
-            throw new HttpError('Election not found', 404);
-        }
-
-        return results;
-    }
 
     /**
      * Get vote statistics for an election
