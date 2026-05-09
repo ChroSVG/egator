@@ -3,7 +3,7 @@ import { createSlice }from '@reduxjs/toolkit';
 
 
 
-const currentVoter = JSON.parse(localStorage.getItem("currentVoter")) || null
+const currentVoter = JSON.parse(localStorage.getItem("currentUser")) || null
 const initialState = {
     currentVoter, 
     selectedVoteCandidate: "", 
@@ -24,7 +24,7 @@ const voteSlice = createSlice({
         changeCurrentVoter(state, action) {
             state.currentVoter = action.payload;
             // Jangan lupa update localStorage juga di sini agar sinkron!
-            localStorage.setItem("currentVoter", JSON.stringify(action.payload));
+            localStorage.setItem("currentUser", JSON.stringify(action.payload));
         },
         changeSelectedElection(state, action) {
             state.selectedElection = action.payload
@@ -48,7 +48,7 @@ const voteSlice = createSlice({
         // AKSI TAMBAHAN: Logout
         logoutVoter(state) {
             state.currentVoter = null;
-            localStorage.removeItem("currentVoter");
+            localStorage.removeItem("currentUser");
             // Reset state lainnya agar bersih
             state.selectedVoteCandidate = "";
             state.selectedElection = "";

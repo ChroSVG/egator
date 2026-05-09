@@ -14,9 +14,7 @@ const Logout = () => {
   useEffect(
     ()=>{
 
-      dispatch(voteActions.changeCurrentVoter(null));
-      localStorage.removeItem("currentUser");
-      localStorage.removeItem("currentVoter");
+      dispatch(voteActions.logoutVoter());
       navigate("/")
       
     }
