@@ -26,9 +26,9 @@ const { uploadImageHelper } = require('../utils/uploadHelper');
  * Handles candidate management business logic.
  */
 class CandidateService {
-    constructor() {
-        this.candidateRepository = new CandidateRepository();
-        this.electionRepository = new ElectionRepository();
+    constructor(candidateRepository = null, electionRepository = null) {
+        this.candidateRepository = candidateRepository || new CandidateRepository();
+        this.electionRepository = electionRepository || new ElectionRepository();
     }
 
     /**

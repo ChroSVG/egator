@@ -16,11 +16,11 @@ const { startSession } = require('../models/candidateModel');
  * Uses Unit of Work pattern for transactions.
  */
 class VotingService {
-    constructor() {
-        this.candidateRepository = new CandidateRepository();
-        this.electionRepository = new ElectionRepository();
-        this.voterRepository = new VoterRepository();
-        this.voteRecordRepository = new VoteRecordRepository();
+    constructor(candidateRepository = null, electionRepository = null, voterRepository = null, voteRecordRepository = null) {
+        this.candidateRepository = candidateRepository || new CandidateRepository();
+        this.electionRepository = electionRepository || new ElectionRepository();
+        this.voterRepository = voterRepository || new VoterRepository();
+        this.voteRecordRepository = voteRecordRepository || new VoteRecordRepository();
     }
 
     /**

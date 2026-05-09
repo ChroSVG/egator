@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Candidate from '../components/Candidate'
 import ConfirmVote from '../components/ConfirmVote'
-import axios from 'axios';
+import API from '../utils/axiosConfig';
 import { useNavigate } from 'react-router-dom'
 
 
@@ -27,15 +27,11 @@ const Candidates = () => {
     try {
       setLoading(true);
       // 1. Fetch Election details
-      const electionRes = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${selectedElection}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const electionRes = await API.get(`/elections/${selectedElection}`);
       setElection(electionRes.data);
 
       // 2. Fetch Candidates
-      const candidatesRes = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${selectedElection}/candidates`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const candidatesRes = await API.get(`/elections/${selectedElection}/candidates`);
       setCandidates(candidatesRes.data.data || candidatesRes.data);
       
     } catch (error) {

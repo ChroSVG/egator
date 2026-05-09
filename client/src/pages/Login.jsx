@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import { useDispatch } from 'react-redux'
 import { voteActions } from '../store/vote-slice'
 const Login = () => {
@@ -34,7 +34,7 @@ const Login = () => {
         }
 
         try {
-          const response = await axios.post(`${import.meta.env.VITE_API_URL}/voters/login`, userData);
+          const response = await API.post('/voters/login', userData);
 
           const newVoter = await response.data;
           // Simpan data voter ke localStorage
@@ -59,7 +59,7 @@ const Login = () => {
               } 
               // 3. Jika server mati atau koneksi gagal
               else {
-                setError("Terjadi kesalahan koneksi ke server.");
+                setError("Connection error with server.");
               }
               
               console.error('Login failed:', error);

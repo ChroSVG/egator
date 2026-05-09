@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import {IoMdClose} from 'react-icons/io'
 import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import { voteActions } from '../store/vote-slice'
 
 const AddCandidateModal = () => { // 1. Terima electionId sebagai prop
@@ -37,17 +37,7 @@ const AddCandidateModal = () => { // 1. Terima electionId sebagai prop
             data.append('electionId', electionId)            
             
             // 2. Kirim electionId ke backend
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_URL}/candidates/elections/${electionId}`, 
-                data, 
-                {
-                    withCredentials: true, 
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
-            )
+            const response = await API.post(`/candidates/elections/${electionId}`, data)
 
             if (response.status === 201) {
                 alert("Candidate added successfully!");

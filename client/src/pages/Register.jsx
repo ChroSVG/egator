@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 const Register = () => {
   const [userData, setUserData] = useState({
     fullName: '',
@@ -33,7 +33,7 @@ const Register = () => {
         }
 
         try {
-          await axios.post(`${import.meta.env.VITE_API_URL}/voters/register`, userData);
+          await API.post('/voters/register', userData);
           nagivate('/');
 
         } catch (error) {
@@ -48,7 +48,7 @@ const Register = () => {
               } 
               // 3. Jika server mati atau koneksi gagal
               else {
-                setError("Terjadi kesalahan koneksi ke server.");
+                setError("Connection error with server.");
               }
               
               console.error('Registration failed:', error);

@@ -12,8 +12,8 @@ const HttpError = require('../models/errorModel');
  * Implements Service Layer pattern - business logic separated from controllers.
  */
 class AuthService {
-    constructor() {
-        this.voterRepository = new VoterRepository();
+    constructor(voterRepository = null) {
+        this.voterRepository = voterRepository || new VoterRepository();
         this.jwtSecret = process.env.JWT_SECRET;
         this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1d';
     }

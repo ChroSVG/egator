@@ -1,6 +1,6 @@
 import React from 'react'
 import {IoMdTrash} from 'react-icons/io'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { voteActions } from '../store/vote-slice'
@@ -14,7 +14,7 @@ const ElectionCandidate = ({fullName, image, motto, _id:id}) => {
   
   const deleteCandidate = async () => {
     try {
-      const res = await axios.delete(`${import.meta.env.VITE_API_URL}/candidates/${id}`, {withCredentials:true, headers: {Authorization: `Bearer ${token}`}})
+      const res = await API.delete(`/candidates/${id}`)
       if(res.status === 200) {
         alert("Candidate deleted successfully")
         dispatch(voteActions.triggerRefresh())

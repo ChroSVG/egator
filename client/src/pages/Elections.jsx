@@ -4,7 +4,7 @@ import AddElectionModal from '../components/AddElectionModal'
 import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
 import UpdateElectionModal from '../components/UpdateElectionModal'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import Loader from '../components/Loader'
 import { useNavigate } from 'react-router-dom'
 
@@ -28,7 +28,7 @@ const Elections = () => {
   
   const fetchElections = async() => {
     try{
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections`, {withCredentials: true, headers: {Authorization: `Bearer ${token}`}})
+      const response = await API.get('/elections')
       dispatch(voteActions.setElections(response.data.elections))
     } catch(error){
       console.error(error)

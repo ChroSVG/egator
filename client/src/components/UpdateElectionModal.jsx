@@ -2,7 +2,7 @@ import React , {useState, useEffect }from 'react'
 import {IoMdClose} from 'react-icons/io'
 import { useDispatch , useSelector} from 'react-redux'
 import {UiActions } from '../store/ui-slice'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import { useNavigate } from 'react-router-dom' 
 import { voteActions } from '../store/vote-slice'
 
@@ -43,12 +43,7 @@ const UpdateElectionModal = () => {
             data.append('description', description)
             data.append('thumbnail', thumbnail)
 
-            await axios.patch(`${import.meta.env.VITE_API_URL}/elections/${idOfElectionToUpdate}`, data, {
-                withCredentials: true,
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            await API.patch(`/elections/${idOfElectionToUpdate}`, data);
 
             alert("Election updated successfully!");
             closeUpdateElectionModal();
@@ -64,12 +59,7 @@ const UpdateElectionModal = () => {
 
     const getElectionDetails = async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${idOfElectionToUpdate}`, {
-                withCredentials: true,
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            const response = await API.get(`/elections/${idOfElectionToUpdate}`);
             const electionData = response.data.data;
             setTitle(electionData.title)
             setDescription(electionData.description)

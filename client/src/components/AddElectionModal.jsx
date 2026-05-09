@@ -2,8 +2,8 @@ import React , {useState}from 'react'
 import {IoMdClose} from 'react-icons/io'
 import { useDispatch, useSelector } from 'react-redux'
 import {UiActions } from '../store/ui-slice'
-import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import API from '../utils/axiosConfig'
+import { voteActions } from '../store/vote-slice'
 const AddElectionModal = () => {
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
@@ -38,17 +38,7 @@ const AddElectionModal = () => {
             data.append('description', description)
             data.append('thumbnail', thumbnail)
 
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_URL}/elections`, 
-                data, 
-                {
-                    withCredentials: true, 
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
-            )
+            const response = await API.post('/elections', data)
 
             if (response.status === 201) {
                 alert("Election created successfully!");

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 // import { elections as dummyElections}  from '../data'
 
 import ResultElection from '../components/ResultElection'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 const Result = () => {
@@ -16,12 +16,7 @@ const Result = () => {
       }
 
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections`, {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        const response = await API.get('/elections');
         console.log('API Response:', response.data);
 
         // Axios sudah mem-parse JSON secara otomatis, langsung ambil .data

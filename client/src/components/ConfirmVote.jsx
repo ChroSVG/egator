@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux'
 import {UiActions} from '../store/ui-slice'
 import { voteActions } from '../store/vote-slice'; // 1. Import ini
-import axios from 'axios';
+import API from '../utils/axiosConfig';
 import {useNavigate} from "react-router-dom"
 
 const ConfirmVote = ({ selectedElection, token: propToken }) => { // 2. Terima props
@@ -25,19 +25,15 @@ const ConfirmVote = ({ selectedElection, token: propToken }) => { // 2. Terima p
 
   // get the selected candidate
   const fetchCandidate = async() => {
-    const candidate = await axios.get(`${import.meta.env.VITE_API_URL}/candidates/${selectedCandidateId}`, {withCredentials: true, headers: {Authorization: `Bearer ${token}`}})
+    const candidate = await API.get(`/candidates/${selectedCandidateId}`)
     setModalCandidate(candidate.data.data)
   }
 
   const confirmVote = async () => {
     try {
-      const response = await axios.patch(
-        `${import.meta.env.VITE_API_URL}/candidates/${selectedCandidateId}/vote`, 
-        { selectedElectionId: selectedElection }, // 3. Gunakan ID dari props
-        { 
-          withCredentials: true, 
-          headers: { Authorization: `Bearer ${token}` } 
-        }
+      const response = await API.patch(
+        `/candidates/${selectedCandidateId}/vote`, 
+        { selectedElectionId: selectedElection }
       );
 
       if (response.status === 200) {

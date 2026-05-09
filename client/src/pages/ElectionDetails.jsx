@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
 import AddCandidateModal from '../components/AddCandidateModal'
 import { voteActions } from '../store/vote-slice'
-import axios from 'axios'
+import API from '../utils/axiosConfig'
 import Loader from '../components/Loader'
 import { isDraft } from '@reduxjs/toolkit'
 import { useNavigate } from 'react-router-dom'
@@ -35,12 +35,7 @@ const ElectionDetails = (props) => {
     const getElectionsData = async () => {
       setIsLoading(true)
       try{
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${id}`, {
-            withCredentials: true,
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
+        const res = await API.get(`/elections/${id}`)
 
         if(res.status === 200) {
             console.log("Election Data:", res.data.data)
@@ -58,12 +53,7 @@ const ElectionDetails = (props) => {
     const getCandidatesData = async () => {
       
       try{
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${id}/candidates`, {
-            withCredentials: true,
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
+        const res = await API.get(`/elections/${id}/candidates`)
 
         if(res.status === 200) {
             console.log("Candidates Data:", res.data)
@@ -79,12 +69,7 @@ const ElectionDetails = (props) => {
     const getVotersData = async () => {
       
       try{
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/elections/${id}/voters`, {
-            withCredentials: true,
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
+        const res = await API.get(`/elections/${id}/voters`)
 
         if(res.status === 200) {
             console.log("Voters Data:", res.data)

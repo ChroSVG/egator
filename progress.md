@@ -22,8 +22,8 @@ This file tracks the progress of fixing issues and improving the codebase.
 - [x] 8. Clean up `client/src/data.js` (dead code)
 - [x] 9. Remove commented-out dead code in controllers
 - [x] 10. Organize loose test scripts to `server/tests/scripts/`
-- [ ] 11. Unify error message language to English
-- [ ] 12. Handle `version` field properly or remove it
+- [x] 11. Unify error message language to English
+- [x] 12. Handle `version` field properly or remove it
 - [ ] 13. Create a simple client API service (`axiosConfig.js`)
 - [ ] 14. Apply Open/Closed Principle to services (Dependency Injection)
 

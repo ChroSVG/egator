@@ -26,10 +26,10 @@ const { uploadImageHelper } = require('../utils/uploadHelper');
  * Handles election management business logic.
  */
 class ElectionService {
-    constructor() {
-        this.electionRepository = new ElectionRepository();
-        this.candidateRepository = new CandidateRepository();
-        this.voterRepository = new VoterRepository();
+    constructor(electionRepository = null, candidateRepository = null, voterRepository = null) {
+        this.electionRepository = electionRepository || new ElectionRepository();
+        this.candidateRepository = candidateRepository || new CandidateRepository();
+        this.voterRepository = voterRepository || new VoterRepository();
     }
 
     /**
