@@ -1,88 +1,80 @@
-import React, { useState } from 'react'
-import {IoMdClose} from 'react-icons/io'
-import { useDispatch, useSelector } from 'react-redux'
-import { UiActions } from '../store/ui-slice'
-import API from '../utils/axiosConfig'
-import { voteActions } from '../store/vote-slice'
+import React, { useState } from 'react';
+import { IoMdClose } from 'react-icons/io';
+import { useDispatch, useSelector } from 'react-redux';
+import { UiActions } from '../store/ui-slice';
+import { voteActions } from '../store/vote-slice';
+import * as candidateApi from '../api/candidateApi';
 
-const AddCandidateModal = () => { // 1. Terima electionId sebagai prop
-    const [fullName, setFullName] = useState("")
-    const [motto, setMotto] = useState("")
-    const [image, setImage] = useState("")
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const currentUser = useSelector(state => state.vote.currentVoter)
-    const token = currentUser?.token
-    const electionId = useSelector(state => state.vote.addCandidateElectionId)
+const AddCandidateModal = () => {
+    const [fullName, setFullName] = useState("");
+    const [motto, setMotto] = useState("");
+    const [image, setImage] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const electionId = useSelector(state => state.vote.addCandidateElectionId);
+    const dispatch = useDispatch();
 
-    const dispatch = useDispatch()
     const closeAddCandidateModal = () => {
-        dispatch(UiActions.closeAddCandidateModal())
-    }
+        dispatch(UiActions.closeAddCandidateModal());
+    };
 
     const handleAddCandidate = async (e) => {
-        e.preventDefault()
+        e.preventDefault();
         
         if (!fullName || !motto || !image || !electionId) {
             alert("Please fill all fields and ensure an election is selected.");
             return;
         }
 
-        setIsSubmitting(true)
+        setIsSubmitting(true);
 
         try {
-            const data = new FormData()
-            data.append('fullName', fullName)
-            data.append('motto', motto)
-            data.append('image', image)
-            data.append('electionId', electionId)            
+            const formData = new FormData();
+            formData.append('fullName', fullName);
+            formData.append('motto', motto);
+            formData.append('image', image);
             
-            // 2. Kirim electionId ke backend
-            const response = await API.post(`/candidates/elections/${electionId}`, data)
+            // Using modular API service
+            await candidateApi.addCandidateToElection('new', electionId, formData);
 
-            if (response.status === 201) {
-                alert("Candidate added successfully!");
-                dispatch(voteActions.triggerRefresh());
-                closeAddCandidateModal();
-            }
+            alert("Candidate added successfully!");
+            dispatch(voteActions.triggerRefresh());
+            closeAddCandidateModal();
         } catch (error) {
-            console.error("Add Candidate Error:", error)
-            alert("Failed to add candidate: " + (error.response?.data?.message || error.message))
+            const errorMsg = error.response?.data?.message || "Failed to add candidate";
+            alert("Error: " + errorMsg);
         } finally {
-            setIsSubmitting(false)
+            setIsSubmitting(false);
         }
-    }
+    };
 
+    return (
+        <section className="modal">
+            <div className="modal__content">
+                <header className="modal__header">
+                    <h4>Add Candidate</h4>
+                    <button className="modal__close" onClick={closeAddCandidateModal}><IoMdClose /></button>
+                </header>
+                <form onSubmit={handleAddCandidate}>
+                    <div>
+                        <h6>Candidate Name:</h6>
+                        <input type="text" name='fullName' value={fullName} onChange={e => setFullName(e.target.value)} required />
+                    </div>
+                    <div>
+                        <h6>Candidate Motto:</h6>
+                        <input type="text" name='motto' value={motto} onChange={e => setMotto(e.target.value)} required />
+                    </div>
+                    <div>
+                        <h6>Candidate Image:</h6>
+                        <input type="file" name='image' onChange={e => setImage(e.target.files[0])} accept="image/*" required />
+                    </div>
+                    <button type="submit" className="btn primary" disabled={isSubmitting}>
+                        {isSubmitting ? 'Adding...' : 'Add Candidate'}
+                    </button>
+                </form>
+            </div>
+        </section>
+    );
+};
 
-  return (
-    <section className="modal">
-        <div className="modal__content">
-            <header className="modal__header">
-                <h4>Add Candidate</h4>
-                <button className="modal__close" onClick={closeAddCandidateModal}><IoMdClose /></button>
-            </header>
-            <form onSubmit={handleAddCandidate}>
-                <div>
-                    <h6>Candidate Name:</h6>
-                    <input type="text" name='fullName' onChange={e=> setFullName(e.target.value)}/>
-                </div>
-                <div>
-                    <h6>Candidate Motto:</h6>
-                    <input type="text" name='motto' onChange={e=> setMotto(e.target.value)}/>
-                </div>
-                <div>
-                    <h6>Candidate Image:</h6>
-                    <input type="file" name='image' onChange={e=> setImage(e.target.files[0])} accept=".jpg,.jpeg,.png,.gif,.bmp,.svg,.webp"/>
-                </div>
-                <button type="submit" className="btn primary" disabled={isSubmitting}>{isSubmitting ? 'Adding...' : 'Add Candidate'}</button>
-            </form>
-        </div>
-    </section>
-
-  
-
-
-)
-
-}
-
-export default AddCandidateModal
+export default AddCandidateModal;
