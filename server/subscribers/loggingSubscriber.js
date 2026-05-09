@@ -1,4 +1,5 @@
 const eventEmitter = require('../utils/eventEmitter');
+const logger = require('../utils/logger');
 
 /**
  * Event Subscribers - Logging
@@ -8,67 +9,35 @@ const eventEmitter = require('../utils/eventEmitter');
 
 // Log vote cast events
 eventEmitter.subscribe('vote:cast', (data) => {
-    console.log('🗳️  VOTE CAST:', {
-        voter: data.voterId,
-        candidate: data.candidateId,
-        election: data.electionId,
-        timestamp: data.timestamp
-    });
+    logger.info('🗳️  VOTE CAST', data);
 });
 
 // Log election events
 eventEmitter.subscribe('election:created', (data) => {
-    console.log('📋 ELECTION CREATED:', {
-        electionId: data.electionId,
-        title: data.title,
-        createdBy: data.adminId,
-        timestamp: data.timestamp
-    });
+    logger.info('📋 ELECTION CREATED', data);
 });
 
 eventEmitter.subscribe('election:deleted', (data) => {
-    console.log('🗑️  ELECTION DELETED:', {
-        electionId: data.electionId,
-        title: data.title,
-        timestamp: data.timestamp
-    });
+    logger.info('🗑️  ELECTION DELETED', data);
 });
 
 // Log candidate events
 eventEmitter.subscribe('candidate:created', (data) => {
-    console.log('👤 CANDIDATE CREATED:', {
-        candidateId: data.candidateId,
-        name: data.name,
-        election: data.electionId,
-        timestamp: data.timestamp
-    });
+    logger.info('👤 CANDIDATE CREATED', data);
 });
 
 // Log user events
 eventEmitter.subscribe('user:registered', (data) => {
-    console.log('📝 USER REGISTERED:', {
-        userId: data.userId,
-        email: data.email,
-        timestamp: data.timestamp
-    });
+    logger.info('📝 USER REGISTERED', data);
 });
 
 eventEmitter.subscribe('user:login', (data) => {
-    console.log('🔐 USER LOGIN:', {
-        userId: data.userId,
-        email: data.email,
-        timestamp: data.timestamp
-    });
+    logger.info('🔐 USER LOGIN', data);
 });
 
 // Log errors
 eventEmitter.subscribe('error', (data) => {
-    console.error('❌ ERROR:', {
-        message: data.message,
-        stack: data.stack,
-        context: data.context,
-        timestamp: data.timestamp
-    });
+    logger.error('❌ ERROR EVENT', data);
 });
 
 module.exports = eventEmitter;

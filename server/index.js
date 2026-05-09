@@ -13,7 +13,9 @@ const cacheService = require('./utils/cacheService');
 // Di index.js
 require('./workers/cleanupWorker');
 // Initialize event subscribers (Observer Pattern)
+// Initialize event subscribers (Observer Pattern)
 require('./subscribers/loggingSubscriber');
+const logger = require('./utils/logger');
 
 const app = express();
 
@@ -46,7 +48,7 @@ app.use(cors({
 // ============ Request Logging ============
 // Morgan - HTTP request logger
 if (config.env !== 'test') {
-    app.use(morgan('combined')); // Use 'dev' for colorful dev output
+    app.use(morgan('combined', { stream: logger.stream }));
 }
 
 // ============ Request ID & Timing ============
@@ -67,7 +69,13 @@ app.use((req, res, next) => {
     // Log after response is finished
     res.on('finish', () => {
         const duration = Date.now() - start;
-        console.log(`[${req.id}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
+        logger.info(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`, {
+            requestId: req.id,
+            method: req.method,
+            url: req.originalUrl,
+            status: res.statusCode,
+            duration: `${duration}ms`
+        });
     });
     
     next();
@@ -142,27 +150,27 @@ const startServer = async () => {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
         });
-        console.log('✅ Connected to MongoDB');
+        logger.info('✅ Connected to MongoDB');
 
         const PORT = config.port;
         server = app.listen(PORT, () => {
-            console.log(`🚀 Server is running on port ${PORT}`);
-            console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+            logger.info(`🚀 Server is running on port ${PORT}`);
+            logger.info(`📍 Health check: http://localhost:${PORT}/api/v1/health`);
         });
 
         // Handle uncaught exceptions
         process.on('uncaughtException', (error) => {
-            console.error('❌ Uncaught Exception:', error);
+            logger.error('❌ Uncaught Exception:', error);
             gracefulShutdown();
         });
 
         process.on('unhandledRejection', (reason, promise) => {
-            console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+            logger.error('❌ Unhandled Rejection at:', { promise, reason });
         });
 
         // Graceful shutdown
         const gracefulShutdown = async () => {
-            console.log('\n🛑 Received shutdown signal, closing server...');
+            logger.info('🛑 Received shutdown signal, closing server...');
             
             if (server) {
                 server.close(async () => {
@@ -170,15 +178,12 @@ const startServer = async () => {
                     
                     try {
                         await mongoose.connection.close();
-                        console.log('✅ MongoDB connection closed');
-                        
-                        // Close cache connection
                         await cacheService.close();
-                        console.log('✅ Cache connection closed');
+                        logger.info('✅ Connections closed successfully');
                         
                         process.exit(0);
                     } catch (error) {
-                        console.error('❌ Error closing connections:', error);
+                        logger.error('❌ Error closing connections:', error);
                         process.exit(1);
                     }
                 });

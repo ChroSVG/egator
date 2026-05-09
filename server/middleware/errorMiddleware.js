@@ -1,4 +1,5 @@
 const config = require('../config');
+const logger = require('../utils/logger');
 
 /**
  * 404 Not Found Handler
@@ -47,12 +48,13 @@ const errorHandler = (err, req, res, next) => {
         errorResponse.stack = err.stack;
     }
 
-    // Log error for debugging
-    console.error(`❌ [${statusCode}] ${req.method} ${req.originalUrl}`);
-    console.error(`   Message: ${err.message}`);
-    if (config.env === 'development') {
-        console.error(`   Stack: ${err.stack}`);
-    }
+    // Log error using structured logger
+    logger.error(`${req.method} ${req.originalUrl} - ${statusCode}`, {
+        statusCode,
+        message: err.message,
+        stack: err.stack,
+        requestId: req.id
+    });
 
     res.json(errorResponse);
 };
