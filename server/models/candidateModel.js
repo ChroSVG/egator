@@ -20,10 +20,6 @@ const candidateSchema = new Schema({
         default: 0,
         min: 0
     },
-    version: {
-        type: Number,
-        default: 0
-    },
     // Support multiple elections
     elections: [{
         type: Types.ObjectId,

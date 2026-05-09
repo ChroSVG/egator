@@ -214,7 +214,6 @@ async createCandidate(data, file) {
                 }
             }
 
-            candidate.version = (candidate.version || 0) + 1;
 
             await candidate.save({ session });
         });
