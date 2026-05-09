@@ -10,10 +10,11 @@ import { useNavigate } from 'react-router-dom'
 
 
 const Elections = () => {
-  const [elections, setElections] = useState([])
+  const elections = useSelector(state => state.vote.elections)
   const [isLoading, setIsLoading] = useState(true)
 
   const electionModalShowing = useSelector(state => state.ui.electionModalShowing)
+  const refreshTrigger = useSelector(state => state.vote.refreshTrigger)
 
   const updateElectionModalShowing = useSelector(state => state.ui.updateElectionModalShowing)
 
@@ -36,7 +37,7 @@ const Elections = () => {
   const fetchElections = async() => {
     try{
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/elections`, {withCredentials: true, headers: {Authorization: `Bearer ${token}`}})
-      setElections(response.data.elections)
+      dispatch(voteActions.setElections(response.data.elections))
     } catch(error){
       console.error(error)
     }
@@ -45,7 +46,7 @@ const Elections = () => {
   
   useEffect(() => {
     fetchElections()
-  }, [])
+  }, [refreshTrigger])
 
   // open add election modal
   const openAddElectionModal = () => {

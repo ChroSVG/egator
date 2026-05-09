@@ -22,6 +22,7 @@ const ElectionDetails = (props) => {
 
     const addCandidateModalShowing = useSelector(state => state.ui.addCandidateModalShowing)
     const token = useSelector(state => state.vote.currentVoter?.token)
+    const refreshTrigger = useSelector(state => state.vote.refreshTrigger)
     const Navigate = useNavigate()
 
       // access control
@@ -138,7 +139,7 @@ const ElectionDetails = (props) => {
         }
 
         fetchData()
-    }, [id, token, dispatch])
+    }, [id, token, dispatch, refreshTrigger])
 
     if (isLoading) {
         return <Loader />

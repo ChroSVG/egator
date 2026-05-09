@@ -53,8 +53,8 @@ const AddElectionModal = () => {
             if (response.status === 201) {
                 alert("Election created successfully!");
                 closeAddElectionModal()
+                dispatch(voteActions.triggerRefresh())
                 navigate(`/elections`)
-                window.location.reload();
             }
         } catch (error) {
             const errorMsg = error.response?.data?.message || error.message;

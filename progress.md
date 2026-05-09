@@ -14,7 +14,7 @@ This file tracks the progress of fixing issues and improving the codebase.
 ### Issue 001: Clean Code & Redundancy (Redundancy and Cleanup Plan)
 - [x] 1. Move duplicate `uploadImage` code to `server/utils/uploadHelper.js`
 - [x] 2. Fix inconsistent localStorage keys (`"currentUser"`)
-- [ ] 3. Remove dead `voteQueue.js` middleware
+- [x] 3. Remove dead `voteQueue.js` middleware
 - [ ] 4. Replace hard page reloads with React state/Redux updates
 - [ ] 5. Create `ProtectedRoute` wrapper for auth
 - [ ] 6. Remove duplicate `getElectionResults` from services

@@ -11,7 +11,9 @@ const initialState = {
     idOfElectionToUpdate: "", 
     addCandidateElectionId: "",
     electionCandidates: [], // TAMBAHKAN INI
-    voters: [] // TAMBAHKAN INI
+    voters: [], // TAMBAHKAN INI
+    elections: [],
+    refreshTrigger: 0
 }
 
 const voteSlice = createSlice({
@@ -44,6 +46,12 @@ const voteSlice = createSlice({
         },
         setVoters(state, action) {
             state.voters = action.payload
+        },
+        setElections(state, action) {
+            state.elections = action.payload
+        },
+        triggerRefresh(state) {
+            state.refreshTrigger = Date.now()
         },
         // AKSI TAMBAHAN: Logout
         logoutVoter(state) {

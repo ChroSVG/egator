@@ -3,7 +3,8 @@ import {IoMdClose} from 'react-icons/io'
 import { useDispatch , useSelector} from 'react-redux'
 import {UiActions } from '../store/ui-slice'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom' // Tambahkan ini
+import { useNavigate } from 'react-router-dom' 
+import { voteActions } from '../store/vote-slice'
 
 const UpdateElectionModal = () => {
     const [title, setTitle] = useState("")
@@ -51,7 +52,7 @@ const UpdateElectionModal = () => {
 
             alert("Election updated successfully!");
             closeUpdateElectionModal();
-            navigate(0); // Refresh page
+            dispatch(voteActions.triggerRefresh());
         } catch (error) {
             console.log(error)
             const errorMsg = error.response?.data?.message || error.message;

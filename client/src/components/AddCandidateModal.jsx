@@ -3,6 +3,7 @@ import {IoMdClose} from 'react-icons/io'
 import { useDispatch, useSelector } from 'react-redux'
 import { UiActions } from '../store/ui-slice'
 import axios from 'axios'
+import { voteActions } from '../store/vote-slice'
 
 const AddCandidateModal = () => { // 1. Terima electionId sebagai prop
     const [fullName, setFullName] = useState("")
@@ -50,8 +51,8 @@ const AddCandidateModal = () => { // 1. Terima electionId sebagai prop
 
             if (response.status === 201) {
                 alert("Candidate added successfully!");
-                if (onClose) onClose(); // Tutup modal parent
-                window.location.reload();
+                dispatch(voteActions.triggerRefresh());
+                closeAddCandidateModal();
             }
         } catch (error) {
             console.error("Add Candidate Error:", error)
