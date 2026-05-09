@@ -142,44 +142,6 @@ class VoteCommand {
         return await this.execute();
     }
 
-    /**
-     * Validate if command can be executed
-     * @returns {Promise<object>}
-     */
-    async validate() {
-        const errors = [];
-
-        // Check voter exists
-        const voter = await this.voterRepository.findById(this.voterId);
-        if (!voter) {
-            errors.push('Voter not found');
-        }
-
-        // Check candidate exists
-        const candidate = await this.candidateRepository.findById(this.candidateId);
-        if (!candidate) {
-            errors.push('Candidate not found');
-        }
-
-        // Check candidate belongs to election (elections is now an array)
-        if (candidate && !candidate.elections.includes(this.electionId)) {
-            errors.push('Candidate does not belong to specified election');
-        }
-
-        // Check voter hasn't already voted
-        const hasVoted = await this.voteRecordRepository.hasVoted(
-            this.voterId,
-            this.electionId
-        );
-        if (hasVoted) {
-            errors.push('Voter has already voted in this election');
-        }
-
-        return {
-            valid: errors.length === 0,
-            errors
-        };
-    }
 
     /**
      * Log command execution

@@ -125,12 +125,6 @@ const voteForCandidate = async (req, res, next) => {
         // Create vote command
         const voteCommand = new VoteCommand(voterId, candidateId, selectedElectionId);
 
-        // Validate before executing
-        const validation = await voteCommand.validate();
-        if (!validation.valid) {
-            throw new HttpError(validation.errors.join(', '), 400);
-        }
-
         // Execute command
         await voteHandler.executeCommand(voteCommand);
         
