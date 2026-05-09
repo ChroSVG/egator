@@ -13,12 +13,17 @@ const Logout = () => {
 
   useEffect(
     ()=>{
-
+      // Dispatch logout action untuk menghapus data dari Redux store
       dispatch(voteActions.logoutVoter());
-      navigate("/")
       
-    }
-  )
+      // Hapus data dari localStorage
+      localStorage.removeItem("currentUser");
+      
+      // Navigasi ke halaman beranda
+      navigate("/");
+    },
+    [dispatch, navigate] // Dependensi: jalankan hanya saat component mount pertama kali
+  );
   
   return (
 
