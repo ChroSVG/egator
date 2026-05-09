@@ -17,6 +17,7 @@ const {
 } = require('../utils/cloudinary');
 
 const { safeCloudinaryDelete } = require('../utils/helper'); // Import helper untuk safe delete
+const { uploadImageHelper } = require('../utils/uploadHelper');
 
 
 /**
@@ -72,7 +73,7 @@ async createCandidate(data, file) {
                 // JIKA KANDIDAT BELUM ADA:
                 // Upload image ke Cloudinary
                 uploadedImageUrl = await cloudinaryBreaker.execute(
-                    async () => await this.uploadImage(file, 'candidates'),
+                    async () => await uploadImageHelper(file, 'candidates'),
                     { fallback: null }
                 );
 
@@ -201,7 +202,7 @@ async createCandidate(data, file) {
 
             // Handle new image upload if provided
             if (file) {
-                const uploadedImageUrl = await uploadToCloudinary(file, 'candidates');
+                const uploadedImageUrl = await uploadImageHelper(file, 'candidates');
                 candidate.image = uploadedImageUrl;
 
                 // Delete old image from Cloudinary (after transaction succeeds)
@@ -402,46 +403,6 @@ async createCandidate(data, file) {
         });
     }
 
-    /**
-     * Upload image to Cloudinary
-     * @param {object} file - Uploaded file
-     * @param {string} folder - Cloudinary folder
-     * @returns {Promise<string>}
-     */
-    async uploadImage(file, folder) {
-    const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
-    const filePath = path.join(__dirname, '..', 'uploads', fileName);
-    
-    // Flag untuk mengecek apakah file berhasil dibuat di lokal
-    let fileExists = false;
-
-    try {
-        // 1. Simpan file ke lokal
-        await file.mv(filePath);
-        fileExists = true; // Tandai file sudah ada
-
-        // 2. Upload ke Cloudinary
-        const imageUrl = await uploadToCloudinary(filePath, folder);
-
-        return imageUrl;
-    } catch (error) {
-        console.error('❌ Error in uploadImage service:', error.message);
-        throw error; // Lempar error ke controller
-    } finally {
-        // 3. Bersihkan file lokal hanya jika file tersebut sempat berhasil dibuat
-        if (fileExists) {
-            try {
-                await fs.unlink(filePath);
-                // console.log('✅ Temporary file cleaned up');
-            } catch (cleanupError) {
-                // Gunakan check sederhana agar tidak memenuhi log jika file memang sudah hilang
-                if (cleanupError.code !== 'ENOENT') {
-                    console.warn('⚠️ Failed to cleanup file:', cleanupError.message);
-                }
-            }
-        }
-    }
-}
 }
 
 module.exports = CandidateService;

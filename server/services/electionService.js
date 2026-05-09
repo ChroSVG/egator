@@ -16,7 +16,8 @@ const {
     deleteFromCloudinary, 
     extractPublicId // Pastikan ini di-import
 } = require('../utils/cloudinary');
-const {safeCloudinaryDelete} = require('../utils/helper')
+const { safeCloudinaryDelete } = require('../utils/helper');
+const { uploadImageHelper } = require('../utils/uploadHelper');
 
 
 /**
@@ -51,7 +52,7 @@ class ElectionService {
 
             // Upload image to Cloudinary (with circuit breaker)
             uploadedImageUrl = await cloudinaryBreaker.execute(
-                async () => await this.uploadImage(file, 'elections'),
+                async () => await uploadImageHelper(file, 'elections'),
                 { fallback: null }
             );
 
@@ -156,7 +157,7 @@ async updateElection(id, data, file = null) {
 
         // UPLOAD BARU (Tetap ditunggu karena kita butuh URL-nya untuk disimpan ke DB)
         const newThumbnail = await cloudinaryBreaker.execute(
-            async () => await this.uploadImage(file, 'elections'),
+            async () => await uploadImageHelper(file, 'elections'),
             { fallback: null }
         );
 
@@ -272,46 +273,6 @@ async updateElection(id, data, file = null) {
         return await this.electionRepository.getResults(electionId);
     }
 
-    /**
-     * Upload image to Cloudinary
-     * @param {object} file - Uploaded file
-     * @param {string} folder - Cloudinary folder
-     * @returns {Promise<string>}
-     */
-    async uploadImage(file, folder) {
-        const fileName = `${file.name.split('.')[0]}-${uuid()}${path.extname(file.name)}`;
-        const filePath = path.join(__dirname, '..', 'uploads', fileName);
-        
-        // Flag untuk mengecek apakah file berhasil dibuat di lokal
-        let fileExists = false;
-    
-        try {
-            // 1. Simpan file ke lokal
-            await file.mv(filePath);
-            fileExists = true; // Tandai file sudah ada
-    
-            // 2. Upload ke Cloudinary
-            const imageUrl = await uploadToCloudinary(filePath, folder);
-    
-            return imageUrl;
-        } catch (error) {
-            console.error('❌ Error in uploadImage service:', error.message);
-            throw error; // Lempar error ke controller
-        } finally {
-            // 3. Bersihkan file lokal hanya jika file tersebut sempat berhasil dibuat
-            if (fileExists) {
-                try {
-                    await fs.unlink(filePath);
-                    // console.log('✅ Temporary file cleaned up');
-                } catch (cleanupError) {
-                    // Gunakan check sederhana agar tidak memenuhi log jika file memang sudah hilang
-                    if (cleanupError.code !== 'ENOENT') {
-                        console.warn('⚠️ Failed to cleanup file:', cleanupError.message);
-                    }
-                }
-            }
-        }
-    }
 
     /**
      * Get active elections

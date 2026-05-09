@@ -10,7 +10,11 @@ const Result = () => {
   const token = useSelector(state => state?.vote?.currentVoter?.token);
   const Navigate = useNavigate()
   
-// create issue in issue folder at dir to plan what can i do to make this project not redundan and clean. make sure the langueage is simple then junior programmer and cheaper ai model can understand the plan.
+// create issue in issue folder at dir to plan with 7 principles clean programming what can i do to make this project not redundan and clean. make sure the langueage is simple then junior programmer and cheaper ai model can understand the plan. i want u to review all files in issue.
+
+
+
+
   // access control
     useEffect(()=>{
       if (!token) {
