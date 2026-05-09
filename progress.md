@@ -19,7 +19,7 @@ This file tracks the progress of fixing issues and improving the codebase.
 - [x] 5. Create `ProtectedRoute` wrapper for auth
 - [x] 6. Remove duplicate `getElectionResults` from services
 - [x] 7. Clean up unused `VoteCommand.validate()`
-- [ ] 8. Clean up `client/src/data.js` (dead code)
+- [x] 8. Clean up `client/src/data.js` (dead code)
 - [ ] 9. Remove commented-out dead code in controllers
 - [ ] 10. Organize loose test scripts to `server/tests/scripts/`
 - [ ] 11. Unify error message language to English

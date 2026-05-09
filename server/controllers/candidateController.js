@@ -14,9 +14,6 @@ const electionService = new ElectionService();
  */
 const addCandidate = async (req, res, next) => {
     try {
-        // if (!req.user.isAdmin) {
-        //     throw new HttpError('You are not authorized to add a candidate', 403);
-        // }
 
         const { fullName, motto, election } = req.body;
 
@@ -189,9 +186,6 @@ const updateCandidate = async (req, res, next) => {
  */
 const deleteCandidate = async (req, res, next) => {
     try {
-        // if (!req.user.isAdmin) {
-        //     throw new HttpError('Unauthorized', 403);
-        // }
 
         const { id } = req.params;
 
@@ -276,9 +270,6 @@ const addCandidateToElection = async (req, res, next) => {
  */
 const removeCandidateFromElection = async (req, res, next) => {
     try {
-        // if (!req.user.isAdmin) {
-        //     throw new HttpError('Unauthorized', 403);
-        // }
 
         const { id: candidateId } = req.params;
         const { electionId } = req.params;
@@ -305,9 +296,6 @@ const removeCandidateFromElection = async (req, res, next) => {
  */
 const moveCandidateToElection = async (req, res, next) => {
     try {
-        // if (!req.user.isAdmin) {
-        //     throw new HttpError('Unauthorized', 403);
-        // }
 
         const { id: candidateId } = req.params;
         const { fromElectionId, toElectionId } = req.body;
